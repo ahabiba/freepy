@@ -23,7 +23,8 @@ from lib.esl import *
 from lib.fsm import *
 from lib.services import *
 from pykka import ActorRegistry, ThreadingActor
-from twisted.internet import reactor
+from twisted.internet import endpoints, reactor
+from twisted.web import resource, server
 
 import conf.settings
 import json
@@ -34,12 +35,16 @@ import sys
 import tarfile
 import zipfile
 
-class InitializeDispatcherEvent(object):
-  def __init__(self, registry, events, mappings, rules):
+class UpdateDispatcherEvent(object):
+  def __init__(self, client, registry, events, mappings, rules):
+    self.__client__ = client
     self.__registry__ = registry
     self.__events__ = events
     self.__mappings__ = mappings
     self.__rules__ = rules
+
+  def get_client(self):
+    return self.__client__
 
   def get_registry(self):
     return self.__registry__
@@ -55,281 +60,6 @@ class InitializeDispatcherEvent(object):
 
 class KillDispatcherEvent(object):
   pass
-
-class DispatcherProxy(IEventSocketClientObserver):
-  def __init__(self, registry, dispatcher, events, mappings, rules):
-    self.__registry__ = registry
-    self.__dispatcher__ = dispatcher
-    self.__events__ = events
-    self.__mappings__ = mappings
-    self.__rules__ = rules
-
-  def on_event(self, event):
-    self.__dispatcher__.tell({'body': event})
-
-  def start(self, client):
-    event = InitializeDispatcherEvent(
-      self.__registry__,
-      self.__events__,
-      self.__mappings__,
-      self.__rules__
-    )
-    self.__dispatcher__.tell({'body': event})
-
-  def stop(self):
-    event = KillDispatcherEvent()
-    self.__dispatcher__.tell({'body': event})
-
-class Dispatcher(FiniteStateMachine, ThreadingActor):
-  initial_state = 'not ready'
-
-  transitions = [
-    ('not ready', 'authenticating'),
-    ('authenticating', 'failed authentication'),
-    ('authenticating', 'initializing'),
-    ('initializing', 'failed initialization'),
-    ('initializing', 'dispatching'),
-    ('dispatching', 'dispatching'),
-    ('dispatching', 'done')
-  ]
-
-  def __init__(self, *args, **kwargs):
-    super(Dispatcher, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('freepy.lib.server.dispatcher')
-    self.__observers__ = dict()
-    self.__transactions__ = dict()
-    self.__watches__ = list()
-
-  @Action(state = 'authenticating')
-  def __authenticate__(self, message):
-    password = freeswitch_host.get('password')
-    auth_command = AuthCommand(password)
-    self.__client__.send(auth_command)
-
-  @Action(state = 'done')
-  def __cleanup__(self, message):
-    self.__apps__.shutdown()
-    self.stop()
-
-  @Action(state = 'dispatching')
-  def __dispatch__(self, message):
-    if message:
-      if isinstance(message, BackgroundCommand):
-        self.__dispatch_command__(message)
-      elif isinstance(message, ServiceRequest):
-        self.__dispatch_service_request__(message)
-      elif isinstance(message, RegisterJobObserverCommand):
-        observer = message.get_observer()
-        uuid = message.get_job_uuid()
-        if observer and uuid:
-          self.__observers__.update({uuid: observer})
-      elif isinstance(message, UnregisterJobObserverCommand):
-        uuid = message.get_job_uuid()
-        if self.__observers__.has_key(uuid):
-          del self.__observers__[uuid]
-      else:
-        headers = message.get_headers()
-        content_type = headers.get('Content-Type')
-        if content_type == 'command/reply':
-          uuid = headers.get('Job-UUID')
-          if uuid:
-            self.__dispatch_response__(uuid, message)
-        elif content_type == 'text/event-plain':
-          uuid = headers.get('Job-UUID')
-          if uuid:
-            self.__dispatch_observer_event__(uuid, message)
-          else:
-            self.__dispatch_incoming__(message)
-
-  def __dispatch_command__(self, message):
-    # Make sure we can route the response to the right actor.
-    uuid = message.get_job_uuid()
-    sender = message.get_sender()
-    self.__transactions__.update({uuid: sender})
-    # Send the command.
-    self.__client__.send(message)
-
-  def __dispatch_incoming__(self, message):
-    if not self.__dispatch_incoming_using_dispatch_rules__(message) and \
-       not self.__dispatch_incoming_using_watches__(message):
-      self.__logger__.info('No route was defined for the following message.\n \
-      %s\n%s', str(message.get_headers()), str(message.get_body()))
-
-  def __dispatch_incoming_using_dispatch_rules__(self, message):
-    headers = message.get_headers()
-    # Dispatch based on the pre-defined dispatch rules.
-    for rule in dispatch_rules:
-      target = rule.get('target')
-      name = rule.get('header_name')
-      header = headers.get(name)
-      if not header:
-        continue
-      value = rule.get('header_value')
-      if value and header == value:
-        self.__apps__.get_instance(target).tell({'content': message})
-        return True
-      pattern = rule.get('header_pattern')
-      if pattern:
-        match = re.search(pattern, header)
-        if match:
-          self.__apps__.get_intance(target).tell({'content': message})
-          return True
-    return False
-
-  def __dispatch_incoming_using_watches__(self, message):
-    headers = message.get_headers()
-    # Dispatch based on runtime watches defined by switchlets.
-    result = None
-    for watch in self.__watches__:
-      name = watch.get_name()
-      header = headers.get(name)
-      if not header:
-        continue
-      value = watch.get_value()
-      if value and header == value:
-        result = watch
-      pattern = watch.get_pattern()
-      if pattern:
-        match = re.search(pattern, header)
-        if match:
-          result = watch
-    if result:
-      observer = result.get_observer()
-      if observer.is_alive():
-        observer.tell({'content': message})
-        return True
-      else:
-        self.__watches__.remove(result)
-    return False
-
-  def __dispatch_observer_event__(self, uuid, message):
-    recipient = self.__observers__.get(uuid)
-    if recipient:
-      if recipient.is_alive():
-        recipient.tell({'content': message})
-      else:
-        del self.__observers__[uuid]
-
-  def __dispatch_response__(self, uuid, message):
-    recipient = self.__transactions__.get(uuid)
-    if recipient:
-      del self.__transactions__[uuid]
-      if recipient.is_alive():
-        recipient.tell({'content': message})
-
-  def __dispatch_service_request__(self, message):
-    name = message.__class__.__name__
-    target = self.__events__.get(name)
-    if target:
-      service = self.__apps__.get_instance(target)
-      service.tell({ 'content': message })
-
-  @Action(state = 'initializing')
-  def __initialize__(self, message):
-    if 'BACKGROUND_JOB' not in dispatch_events:
-      # The BACKGROUND_JOB events must be added at the front of the
-      # list in case the list ends with CUSTOM events.
-      dispatch_events.insert(0, 'BACKGROUND_JOB')
-    events_command = EventsCommand(dispatch_events)
-    self.__client__.send(events_command)
-
-  def __on_auth__(self, message):
-    if self.state() == 'not ready':
-      self.transition(to = 'authenticating', event = message)
-
-  def __on_command__(self, message):
-    if self.state() == 'dispatching':
-      self.transition(to = 'dispatching', event = message)
-
-  def __on_command_reply__(self, message):
-    reply = message.get_header('Reply-Text')
-    if self.state() == 'authenticating':
-      if reply == '+OK accepted':
-        self.transition(to = 'initializing', event = message)
-      elif reply == '-ERR invalid':
-        self.transition(to = 'failed authentication', event = message)
-    if self.state() == 'initializing':
-      if reply == '+OK event listener enabled plain':
-        self.transition(to = 'dispatching')
-      elif reply == '-ERR no keywords supplied':
-        self.transition(to = 'failed initialization', event = message)
-    if self.state() == 'dispatching':
-      self.transition(to = 'dispatching', event = message)
-
-  def __on_event__(self, message):
-    if self.state() == 'dispatching':
-      self.transition(to = 'dispatching', event = message)
-
-  def __on_init__(self, message):
-    self.__apps__ = message.get_apps()
-    self.__client__ = message.get_client()
-    self.__events__ = message.get_events()
-
-  def __on_kill__(self, message):
-    if self.state() == 'dispatching':
-      self.transition(to = 'done', event = message)
-
-  def __on_observer__(self, message):
-    if self.state() == 'dispatching':
-      self.transition(to = 'dispatching', event = message)
-
-  def __on_service_request__(self, message):
-    if self.state() == 'dispatching':
-      self.transition(to = 'dispatching', event = message)
-
-  # Watches are not handled as a state change because singleton switchlets
-  # may add watches during initialization at which point the dispatcher's
-  # FSM is still not ready.
-  def __on_watch__(self, message):
-    if isinstance(message, WatchEventCommand):
-      self.__watches__.append(message)
-    elif isinstance(message, UnwatchEventCommand):
-      name = message.get_name()
-      value = message.get_value()
-      if not value:
-        value = message.get_pattern()
-      match = None
-      for watch in self.__watches__:
-        if name == watch.get_name() and value == watch.get_value() or \
-           value == watch.get_pattern:
-          match = watch
-      if match:
-        self.__watches__.remove(match)
-
-  def on_failure(self, exception_type, exception_value, traceback):
-    self.__logger__.error(exception_value)
-
-  def on_receive(self, message):
-    # This is necessary because all Pykka messages
-    # must be of type dict.
-    message = message.get('content')
-    if not message:
-      return
-    # Handle the message.
-    if isinstance(message, Event):
-      content_type = message.get_header('Content-Type')
-      if content_type == 'auth/request':
-        self.__on_auth__(message)
-      elif content_type == 'command/reply':
-        self.__on_command_reply__(message)
-      elif content_type == 'text/event-plain':
-        self.__on_event__(message)
-    elif isinstance(message, BackgroundCommand):
-      self.__on_command__(message)
-    elif isinstance(message, ServiceRequest):
-      self.__on_service_request__(message)
-    elif isinstance(message, RegisterJobObserverCommand):
-      self.__on_observer__(message)
-    elif isinstance(message, UnregisterJobObserverCommand):
-      self.__on_observer__(message)
-    elif isinstance(message, InitializeDispatcherEvent):
-      self.__on_init__(message)
-    elif isinstance(message, KillDispatcherEvent):
-      self.__on_kill__(message)
-    elif isinstance(message, UnwatchEventCommand):
-      self.__on_watch__(message)
-    elif isinstance(message, WatchEventCommand):
-      self.__on_watch__(message)
 
 class ApplicationLoader(object):
   def __init__(self, registry, events, rules):
@@ -461,6 +191,171 @@ class ApplicationWatchdog(object):
   def __init__(self, *args, **kwargs):
     pass
 
+class DispatcherProxy(IEventSocketClientObserver):
+  def __init__(self, registry, dispatcher, events, mappings, rules):
+    self.__registry__ = registry
+    self.__dispatcher__ = dispatcher
+    self.__events__ = events
+    self.__mappings__ = mappings
+    self.__rules__ = rules
+
+  def on_event(self, event):
+    self.__dispatcher__.tell({ 'body': event })
+
+  def start(self, client):
+    event = UpdateDispatcherEvent(
+      client,
+      self.__registry__,
+      self.__events__,
+      self.__mappings__,
+      self.__rules__
+    )
+    self.__dispatcher__.tell({ 'body': event })
+
+  def stop(self):
+    self.__dispatcher__.tell({ 'body': KillDispatcherEvent() })
+
+class Dispatcher(ThreadingActor):
+  def __init__(self, *args, **kwargs):
+    super(Dispatcher, self).__init__(*args, **kwargs)
+    self.__logger__ = logging.getLogger('freepy.lib.server.dispatcher')
+    self.__observers__ = dict()
+    self.__transactions__ = dict()
+
+  def __dispatch_command__(self, message):
+    uuid = message.get_job_uuid()
+    sender = message.get_sender()
+    self.__transactions__.update({ uuid: sender })
+    self.__client__.send(message)
+
+  def __dispatch_event__(self, message):
+    content_type = message.get_header('Content-Type')
+    if content_type == 'command/reply':
+      uuid = message.get_header('Job-UUID')
+      recipient = self.__transactions__.get(uuid)
+      if recipient is not None:
+        del self.__transactions__[uuid]
+        if recipient.is_alive():
+          recipient.tell({ 'body': message })
+    elif content_type == 'text/event-plain':
+      uuid = message.get_header('Job-UUID')
+      if uuid is not None:
+        recipient = self.__observers__.get(uuid)
+        if recipient:
+          if recipient.is_alive():
+            recipient.tell({ 'body': message })
+          else:
+            del self.__observers__[uuid]
+      else:
+        routed = False
+        for rule in self.__rules__:
+          target = rule.get('target')
+          name = rule.get('header_name')
+          header = message.get_header(name)
+          if header is None:
+            continue
+          value = rule.get('header_value')
+          if value is not None and header == value:
+            self.__registry__.get(target).tell({ 'body': message })
+            routed = True
+          pattern = rule.get('header_pattern')
+          if pattern is not None and re.search(pattern, header):
+            self.__registry__.get(target).tell({ 'body': message })
+            routed = True
+        if not routed:
+          self.__logger__.warning('No route defined for:\n%s\n%s' % \
+                                  str(message.get_headers()),
+                                  str(message.get_body()))
+
+  def __dispatch_service_request__(self, message):
+    name = message.__class__.__name__
+    target = self.__mappings__.get(name)
+    if target is not None:
+      service = self.__registry__.get(target)
+      service.tell({ 'body': message })
+
+  def __register_job_observer__(self, message):
+    observer = message.get_observer()
+    uuid = message.get_job_uuid()
+    if observer is not None and uuid is not None:
+      self.__observers__.update({ uuid: observer })
+
+  def __unregister_job_observer__(self, message):
+    uuid = message.get_job_uuid()
+    if self.__observers__.has_key(uuid):
+      del self.__observers__[uuid]
+
+  def __stop__(self, message):
+    self.__registry__.shutdown()
+    self.stop()
+
+  def __update__(self, message):
+    self.__client__ = message.get_client()
+    self.__registry__ = message.get_registry()
+    self.__events__ = message.get_events()
+    self.__mappings__ = message.get_mappings()
+    self.__rules__ = message.get_rules()
+
+  def on_receive(self, message):
+    message = message.get('body')
+    if message is None:
+      return
+    if isinstance(message, Event):
+      self.__dispatch_event__(message)
+    elif isinstance(message, BackgroundCommand):
+      self.__dispatch_command__(message)
+    elif isinstance(message, ServiceRequest):
+      self.__dispatch_service_request__(message)
+    elif isinstance(message, RegisterJobObserverCommand):
+      self.__register_job_observer__(message)
+    elif isinstance(message, UnregisterJobObserverCommand):
+      self.__unregister_job_observer__(message)
+    elif isinstance(message, UpdateDispatcherEvent):
+      self.__update__(message)
+    elif isinstance(message, KillDispatcherEvent):
+      self.__stop__(message)
+
+class FreeSwitchConnector(FiniteStateMachine):
+  initial_state = 'idle'
+
+  transitions = [
+    ('idle', 'authenticating'),
+    ('authenticating', 'failed'),
+    ('authenticating', 'done')
+  ]
+
+  def __init__(self, *args, **kwargs):
+    super(FreeSwitchConnector, self).__init__(*args, **kwargs)
+    self.__logger__ = logging.getLogger('freepy.lib.server.freeswitchconnector')
+    self.__client__ = args[0]
+    self.__dispatcher__ = args[1]
+    self.__password__ = args[2]
+
+  @Action(state = 'authenticating')
+  def __authenticate__(self, message):
+    self.__client__.send(AuthCommand(self.__password__))
+
+  @Action(state = 'failed')
+  def __fail__(self, message):
+    pass
+
+  @Action(state = 'done')
+  def __finish__(self, message):
+    pass
+
+  def on_receive(self, message):
+    message = message.get('body')
+    if isinstance(message, Event):
+      content_type = message.get_header('Content-Type')
+      if content_type == 'auth/request':
+        self.transition(to = 'authenticating', event = message)
+      elif content_type == 'command/reply':
+        reply = message.get_header('Reply-Text')
+        if reply == '+OK accepted':
+          self.transition(to = 'done', event = message)
+        elif reply == '-ERR invalid':
+          self.transition(to = 'failed', event = message)
+
 class ServiceLoader(object):
   def __init__(self, config, registry, mappings):
     self.__logger__ = logging.getLogger('freepy.lib.server.serviceloader')
@@ -507,7 +402,7 @@ class FreepyServer(object):
       format = conf.settings.logging_format,
       level = conf.settings.logging_level
     )
-    # Create a dispatcher thread.
+    # Initialize the server.
     dispatcher = Dispatcher().start()
     registry = ApplicationRegistry(
       create_msg = InitializeSwitchletEvent(dispatcher),
@@ -516,14 +411,13 @@ class FreepyServer(object):
     events, mappings, rules = [], {}, []
     ServiceLoader(conf.settings.services, registry, mappings).load()
     ApplicationLoader(registry, events, rules).load()
-    # Create the proxy between the event socket client and the dispatcher.
     proxy = DispatcherProxy(registry, dispatcher, events, mappings, rules)
-    ## Create an event socket client factory and start the reactor.
-    #address = freeswitch_host.get('address')
-    #port = freeswitch_host.get('port')
-    #factory = EventSocketClientFactory(dispatcher_proxy)
-    #reactor.connectTCP(address, port, factory)
-    #reactor.run()
+    # Create an event socket client factory and start the reactor.
+    address = conf.settings.freeswitch.get('address')
+    port = conf.settings.freeswitch.get('port')
+    factory = EventSocketClientFactory(proxy)
+    reactor.connectTCP(address, port, factory)
+    reactor.run()
 
   def stop(self):
     ActorRegistry.stop_all()
