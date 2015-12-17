@@ -26,9 +26,52 @@ class InitializeSwitchletEvent(object):
   def get_dispatcher(self):
     return self.__dispatcher__
 
-class UninitializeSwitchletEvent(object):
+class KillSwitchletEvent(object):
   pass
+
+class RegisterJobObserverCommand(object):
+  def __init__(self, observer, uuid):
+    self.__observer__ = observer
+    self.__job_uuid__ = uuid
+
+  def get_job_uuid(self):
+    return self.__job_uuid__
+
+  def get_observer(self):
+    return self.__observer__
 
 class Switchlet(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(Switchlet, self).__init__(*args, **kwargs)
+
+class UnregisterJobObserverCommand(object):
+  def __init__(self, uuid):
+    self.__job_uuid__ = uuid
+
+  def get_job_uuid(self):
+    return self.__job_uuid__
+
+class UnwatchEventCommand(object):
+  def __init__(self, *args, **kwargs):
+    self.__name__ = kwargs.get('name', None)
+    self.__pattern__ = kwargs.get('pattern', None)
+    self.__value__ = kwargs.get('value', None)
+    if not self.__name__ or self.__pattern__ and self.__value__:
+      raise ValueError('Please specify a name and a pattern or a value but not both.')
+
+  def get_name(self):
+    return self.__name__
+
+  def get_pattern(self):
+    return self.__pattern__
+
+  def get_value(self):
+    return self.__value__
+
+class WatchEventCommand(UnwatchEventCommand):
+  def __init__(self, *args, **kwargs):
+    super(WatchEventCommand, self).__init__(*args, **kwargs)
+    self.__observer__ = args[0]
+
+  def get_observer(self):
+    return self.__observer__

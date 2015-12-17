@@ -17,7 +17,6 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from conf.settings import *
 from lib.commands import *
 from lib.core import *
 from lib.esl import *
@@ -26,169 +25,60 @@ from lib.services import *
 from pykka import ActorRegistry, ThreadingActor
 from twisted.internet import reactor
 
+import conf.settings
+import json
 import logging
+import os
 import re
 import sys
+import tarfile
+import zipfile
 
-# Commands used only by the Freepy server.
-class AuthCommand(object):
-  def __init__(self, password):
-    self.__password__ = password
-
-  def __str__(self):
-    return 'auth %s\n\n' % (self.__password__)
-
-class EventsCommand(object):
-  def __init__ (self, events, format = 'plain'):
-    if(not format == 'json' and not format == 'plain' and not format == 'xml'):
-      raise ValueError('The FreeSWITCH event socket only supports the \
-        following formats: json, plain, xml')
-    self.__events__ = events
-    self.__format__ = format
-
-  def __str__(self):
-    return 'event %s %s\n\n' % (self.__format__, ' '.join(self.__events__))
-
-# Events used only between the Dispatcher and the Dispatcher Proxy.
 class InitializeDispatcherEvent(object):
-  def __init__(self, apps, client, events):
-    self.__apps__ = apps
-    self.__client__ = client
+  def __init__(self, registry, events, mappings, rules):
+    self.__registry__ = registry
     self.__events__ = events
+    self.__mappings__ = mappings
+    self.__rules__ = rules
 
-  def get_apps(self):
-    return self.__apps__
-
-  def get_client(self):
-    return self.__client__
+  def get_registry(self):
+    return self.__registry__
 
   def get_events(self):
     return self.__events__
 
+  def get_mappings(self):
+    return self.__mappings__
+
+  def get_rules(self):
+    return self.__rules__
+
 class KillDispatcherEvent(object):
   pass
 
-# Commands used between the Switchlets and the Dispatcher.
-class RegisterJobObserverCommand(object):
-  def __init__(self, observer, uuid):
-    self.__observer__ = observer
-    self.__job_uuid__ = uuid
-
-  def get_job_uuid(self):
-    return self.__job_uuid__
-
-  def get_observer(self):
-    return self.__observer__
-
-class UnregisterJobObserverCommand(object):
-  def __init__(self, uuid):
-    self.__job_uuid__ = uuid
-
-  def get_job_uuid(self):
-    return self.__job_uuid__
-
-class UnwatchEventCommand(object):
-  def __init__(self, *args, **kwargs):
-    self.__name__ = kwargs.get('name', None)
-    self.__pattern__ = kwargs.get('pattern', None)
-    self.__value__ = kwargs.get('value', None)
-    if not self.__name__ or self.__pattern__ and self.__value__:
-      raise ValueError('Please specify a name and a pattern or a value but not both.')
-
-  def get_name(self):
-    return self.__name__
-
-  def get_pattern(self):
-    return self.__pattern__
-
-  def get_value(self):
-    return self.__value__
-
-class WatchEventCommand(UnwatchEventCommand):
-  def __init__(self, *args, **kwargs):
-    super(WatchEventCommand, self).__init__(*args, **kwargs)
-    self.__observer__ = args[0]
-
-  def get_observer(self):
-    return self.__observer__
-
-# The Core server components.
-class ApplicationFactory(object):
-  def __init__(self, dispatcher):
-    self.__classes__ = dict()
-    self.__singletons__ = dict()
-    self.__init_event__ = InitializeSwitchletEvent(dispatcher)
-    self.__uninit_event__ = UninitializeSwitchletEvent()
-
-  def __contains_name__(self, name):
-    return self.__classes__.has_key(name) or self.__singletons__.has_key(name)
-
-  def __get_klass__(self, name):
-    module = sys.modules.get(name)
-    if not module:
-      separator = name.rfind('.')
-      path = name[:separator]
-      klass = name[separator + 1:]
-      module = __import__(path, globals(), locals(), [klass], -1)
-      return getattr(module, klass)
-
-  def get_instance(self, name):
-    klass = self.__classes__.get(name)
-    if klass:
-      instance = klass().start()
-      instance.tell({'content': self.__init_event__})
-      return instance
-    else:
-      instance = self.__singletons__.get(name)
-      return instance
-
-  def register(self, name, type = 'class'):
-    if self.__contains_name__(name):
-      raise ValueError("Names must be unique across classes and singletons.\n\
-      %s already exists please choose a different name and try again.",
-      name)
-    klass = self.__get_klass__(name)
-    if type == 'class':
-      self.__classes__.update({name: klass})
-    if type == 'singleton':
-      singleton = klass.start()
-      singleton.tell({'content': self.__init_event__})
-      self.__singletons__.update({name: singleton})
-
-  def unregister(self, name):
-    klass = self.__classes__.get(name)
-    if klass:
-      del self.__classes__[name]
-    else:
-      singleton = self.__singletons__.get(name)
-      if singleton:
-        if singleton.is_alive():
-          singleton.tell({'content': self.__uninit_event__})
-          singleton.stop()
-        del self.__singletons__[name]
-
-  def shutdown(self):
-    # Cleanup the singletons being managed.
-    names = self.__singletons__.keys()
-    for name in names:
-      self.unregister(name) 
-
 class DispatcherProxy(IEventSocketClientObserver):
-  def __init__(self, apps, dispatcher, events):
-    self.__apps__ = apps
+  def __init__(self, registry, dispatcher, events, mappings, rules):
+    self.__registry__ = registry
     self.__dispatcher__ = dispatcher
     self.__events__ = events
+    self.__mappings__ = mappings
+    self.__rules__ = rules
 
   def on_event(self, event):
-    self.__dispatcher__.tell({'content': event})
+    self.__dispatcher__.tell({'body': event})
 
-  def on_start(self, client):
-    event = InitializeDispatcherEvent(self.__apps__, client, self.__events__)
-    self.__dispatcher__.tell({'content': event})
+  def start(self, client):
+    event = InitializeDispatcherEvent(
+      self.__registry__,
+      self.__events__,
+      self.__mappings__,
+      self.__rules__
+    )
+    self.__dispatcher__.tell({'body': event})
 
-  def on_stop(self):
+  def stop(self):
     event = KillDispatcherEvent()
-    self.__dispatcher__.tell({'content': event})
+    self.__dispatcher__.tell({'body': event})
 
 class Dispatcher(FiniteStateMachine, ThreadingActor):
   initial_state = 'not ready'
@@ -441,69 +331,199 @@ class Dispatcher(FiniteStateMachine, ThreadingActor):
     elif isinstance(message, WatchEventCommand):
       self.__on_watch__(message)
 
-class FreepyServer(object):
-  def __generate_event_lookup_table__(self):
-    lookup_table = dict()
-    for service in dispatcher_services:
-      events = service.get('events')
-      for event in events:
-        lookup_table.update({ event: service.get('target') })
-    return lookup_table
+class ApplicationLoader(object):
+  def __init__(self, registry, events, rules):
+    self.__logger__ = logging.getLogger('freepy.lib.server.applicationloader')
+    cwd = os.path.dirname(os.path.realpath(__file__))
+    cwd = os.path.dirname(cwd)
+    self.__apps__ = os.path.join(cwd, 'applications')
+    self.__events__ = events
+    self.__registry__ = registry
+    self.__rules__ = rules
 
+  def __is_valid__(self, meta):
+    if not meta.has_key('events') or \
+       not meta.has_key('rules'):
+      return False
+    if type(meta.get('events')) is not list or \
+       type(meta.get('rules')) is not list:
+      return False
+    for event in meta.get('events'):
+      if type(event) is not str and \
+         type(event) is not unicode:
+        return False
+    for rule in meta.get('rules'):
+      if type(rule) is not dict:
+        return False
+      header = rule.get('header_name')
+      target = rule.get('target')
+      if header is None or target is None:
+        return False
+      value = rule.get('header_value')
+      pattern = rule.get('header_pattern')
+      if value is not None and pattern is not None or \
+         value is None and pattern is None:
+        return False
+    return True
+
+  def load(self):
+    root = os.listdir(self.__apps__)
+    for item in root:
+      path = os.path.join(self.__apps__, item)
+      if not os.path.isdir(path):
+        continue
+      metafile = os.path.join(path, 'metafile.json')
+      if not os.path.exists(metafile):
+        self.__logger__.warning('The application %s is missing a metafile.' % \
+                                item)
+        continue
+      with open(metafile, 'r') as input:
+        try:
+          meta = json.loads(input.read())
+        except Exception as e:
+          self.__logger__.warning('There was an error reading the ' + \
+                                  'metafile for %s.' % item)
+          self.__logger__.exception(e)
+          continue
+      if not self.__is_valid__(meta):
+        self.__logger__.warning('The metafile for %s is invalid.' % item)
+        continue
+      for event in meta.get('events'):
+        self.__events__.append(event)
+      for rule in meta.get('rules'):
+        rule.update({ 'target': 'applications.%s' % rule.get('target') })
+        if not rule.get('singleton', False):
+          self.__registry__.register(rule.get('target'))
+        else:
+          self.__registry__.register(rule.get('target'), singleton = True)
+        self.__rules__.append(rule)
+      if meta.has_key('name'):
+        self.__logger__.info('Loaded %s' % meta.get('name'))
+
+class ApplicationRegistry(object):
+  def __init__(self, create_msg = None, destroy_msg = None):
+    self.__singletons__ = dict()
+    self.__klasses__ = dict()
+    self.__create_msg__ = create_msg
+    self.__destroy_msg__ = destroy_msg
+
+  def __klass__(self, path):
+    module = sys.modules.get(path)
+    if not module:
+      offset = path.rfind('.')
+      prefix = path[:offset]
+      klass = path[offset + 1:]
+      module = __import__(prefix, globals(), locals(), [klass], -1)
+      return getattr(module, klass)
+
+  def exists(self, path, singleton = False):
+    if not singleton:
+      return self.__klasses__.has_key(path)
+    else:
+      return self.__singletons__.has_key(path)
+
+  def get(self, path):
+    if self.__klasses__.has_key(path):
+      klass = self.__klasses__.get(path)
+      switchlet = klass().start()
+      switchlet.tell({ 'body': self.__create_msg__ })
+      return switchlet
+    elif self.__singletons__.has_key(path):
+      return self.__singletons__.get(path)
+    else:
+      return None
+
+  def register(self, path, singleton = False):
+    klass = self.__klass__(path)
+    if not singleton:
+      self.__klasses__.update({ path: klass })
+    else:
+      switchlet = klass().start()
+      switchlet.tell({ 'body': self.__create_msg__ })
+      self.__singletons__.update({ path: switchlet })
+
+  def shutdown(self):
+    paths = self.__singletons__.keys()
+    for path in paths:
+      self.unregister(path)
+
+  def unregister(self, path):
+    if self.__klasses__.has_key(path):
+      del self.__klasses__[path]
+    elif self.__singletons__.has_key(path):
+      switchlet = self.__singletons__.get(path)
+      if switchlet.is_alive():
+        switchlet.tell({ 'body': self.__destroy_msg__ })
+        switchlet.stop()
+      del self.__singletons__[path]
+
+class ApplicationWatchdog(object):
+  def __init__(self, *args, **kwargs):
+    pass
+
+class ServiceLoader(object):
+  def __init__(self, config, registry, mappings):
+    self.__logger__ = logging.getLogger('freepy.lib.server.serviceloader')
+    self.__config__ = config
+    self.__mappings__ = mappings
+    self.__registry__ = registry
+
+  def __is_valid__(self, config):
+    if type(config) is not list:
+      return False
+    for service in config:
+      if not service.has_key('events'):
+        return False
+      events = service.get('events')
+      if type(events) is not list:
+        return False
+      for event in events:
+        if type(event) is not str and \
+           type(event) is not unicode:
+          return False
+      if not service.has_key('target'):
+        return False
+    return True
+
+  def load(self):
+    if not self.__is_valid__(self.__config__):
+      self.__logger__.warning('The services configuration is invalid.')
+      return
+    for service in self.__config__:
+      self.__registry__.register(service.get('target'), singleton = True)
+      for event in service.get('events'):
+        self.__mappings__.update({ event: service.get('target') })
+      if service.has_key('name'):
+        self.__logger__.info('Loaded %s' % service.get('name'))
+
+class FreepyServer(object):
   def __init__(self, *args, **kwargs):
     self.__logger__ = logging.getLogger('freepy.lib.server.freepyserver')
 
-  def __load_apps_factory__(self, dispatcher):
-    factory = ApplicationFactory(dispatcher)
-    for rule in dispatch_rules:
-      target = rule.get('target')
-      persistent = rule.get('persistent')
-      if not persistent:
-        factory.register(target, type = 'class')
-      else:
-        factory.register(target, type = 'singleton')
-    return factory
-
-  def __load_services__(self, factory):
-    for service in dispatcher_services:
-      factory.register(service.get('target'), type = 'singleton')
-
-  def __validate_rule__(self, rule):
-    name = rule.get('header_name')
-    value = rule.get('header_value')
-    pattern = rule.get('header_pattern')
-    target = rule.get('target')
-    if not name or not target or not value and not pattern \
-      or value and pattern:
-      return False
-    else:
-      return True
-
   def start(self):
     # Initialize application wide logging.
-    logging.basicConfig(filename = logging_filename, format = logging_format,
-      level = logging_level)
-    # Validate the list of rules.
-    for rule in dispatch_rules:
-      if not self.__validate_rule__(rule):
-        self.__logger__.critical('The rule %s is invalid.', str(rule))
-        return
+    logging.basicConfig(
+      filename = conf.settings.logging_filename,
+      format = conf.settings.logging_format,
+      level = conf.settings.logging_level
+    )
     # Create a dispatcher thread.
     dispatcher = Dispatcher().start()
-    # Load all the apps.
-    apps = self.__load_apps_factory__(dispatcher)
-    # Load the dispatcher services.
-    self.__load_services__(apps)
-    # Generate an event lookup table.
-    events = self.__generate_event_lookup_table__()
+    registry = ApplicationRegistry(
+      create_msg = InitializeSwitchletEvent(dispatcher),
+      destroy_msg = KillSwitchletEvent()
+    )
+    events, mappings, rules = [], {}, []
+    ServiceLoader(conf.settings.services, registry, mappings).load()
+    ApplicationLoader(registry, events, rules).load()
     # Create the proxy between the event socket client and the dispatcher.
-    dispatcher_proxy = DispatcherProxy(apps, dispatcher, events)
-    # Create an event socket client factory and start the reactor.
-    address = freeswitch_host.get('address')
-    port = freeswitch_host.get('port')
-    factory = EventSocketClientFactory(dispatcher_proxy)
-    reactor.connectTCP(address, port, factory)
-    reactor.run()
+    proxy = DispatcherProxy(registry, dispatcher, events, mappings, rules)
+    ## Create an event socket client factory and start the reactor.
+    #address = freeswitch_host.get('address')
+    #port = freeswitch_host.get('port')
+    #factory = EventSocketClientFactory(dispatcher_proxy)
+    #reactor.connectTCP(address, port, factory)
+    #reactor.run()
 
   def stop(self):
     ActorRegistry.stop_all()

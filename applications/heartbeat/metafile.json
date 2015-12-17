@@ -1,0 +1,12 @@
+{
+  "events": ["HEARTBEAT"],
+  "name": "Heartbeat Monitor",
+  "rules": [
+    {
+      "header_name": "Event-Name",
+      "header_value": "HEARTBEAT",
+      "singleton": true,
+      "target": "heartbeat.example.Monitor"
+    }
+  ]
+}

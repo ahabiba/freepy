@@ -26,29 +26,26 @@ from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 #   INFO
 #   DEBUG
 #   NOTSET
-logging_level = DEBUG
+logging_level = INFO
 logging_format = '%(asctime)s %(levelname)s - %(name)s - %(message)s'
-logging_filename = None # '/usr/lib/freepy/log/freepy.log'
+logging_filename = None # '/var/log/freepy/freepy.log'
 
 # The Event Socket configuration used to connect to FreeSWITCH.
-freeswitch_host = {
-    'name':     'FreeSwITCH Test VM',
+freeswitch = {
+    'name':     'FreeSWITCH',
     'address':  '127.0.0.1',
     'port':      8021,
     'password': 'ClueCon'
 }
 
 # A list of services to register with the dispatcher.
-dispatcher_services = [
+services = [
   {
-    'name': 'Timer Service',                # The service name.
-    'events': [                             # A list of events to forward to the service.
+    'name': 'Timer Service',
+    'events': [
       'ReceiveTimeoutCommand',
       'StopTimeoutCommand'
     ],
-    'target': 'lib.services.TimerService'  # The path to the service.
+    'target': 'lib.services.TimerService'
   }
 ]
-
-# Import the dispatch rules for the dispatcher.
-from rules import *

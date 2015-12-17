@@ -32,10 +32,10 @@ class IEventSocketClientObserver(object):
   def on_event(self, event):
     pass
 
-  def on_start(self, client):
+  def start(self, client):
     pass
 
-  def on_stop(self):
+  def stop(self):
     pass
 
 class Event(object):
@@ -154,7 +154,7 @@ class EventSocketClient(Protocol):
     self.__logger__.critical('A connection to the FreeSWITCH instance located @ %s:%i \
     has been lost due to the following reason.\n%s', self.__peer__.host, 
     self.__peer__.port, reason)
-    self.__observer__.on_stop()
+    self.__observer__.stop()
     if self.__buffer__:
       self.__buffer__.close()
     self.__buffer__ = None
@@ -165,7 +165,7 @@ class EventSocketClient(Protocol):
     self.__buffer__ = StringIO()
     self.__host__ = self.transport.getHost()
     self.__peer__ = self.transport.getPeer()
-    self.__observer__.on_start(self)
+    self.__observer__.start(self)
 
   def dataReceived(self, data):
     if self.__logger__.isEnabledFor(logging.DEBUG):

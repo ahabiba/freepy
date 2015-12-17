@@ -27,6 +27,13 @@ try:
 except:
   from StringIO import StringIO
 
+class AuthCommand(object):
+  def __init__(self, password):
+    self.__password__ = password
+
+  def __str__(self):
+    return 'auth %s\n\n' % (self.__password__)
+
 class BackgroundCommand(object):
   def __init__(self, *args, **kwargs):
     self.__sender__ = args[0]
@@ -511,6 +518,17 @@ class EnableVerboseEventsCommand(BackgroundCommand):
 
   def __str__(self):
     return 'bgapi fsctl verbose_events on\nJob-UUID: %s\n\n' % self.__job_uuid__
+
+class EventsCommand(object):
+  def __init__ (self, events, format = 'plain'):
+    if(not format == 'json' and not format == 'plain' and not format == 'xml'):
+      raise ValueError('The FreeSWITCH event socket only supports the \
+        following formats: json, plain, xml')
+    self.__events__ = events
+    self.__format__ = format
+
+  def __str__(self):
+    return 'event %s %s\n\n' % (self.__format__, ' '.join(self.__events__))
 
 class FileManagerCommand(UUIDCommand):
   '''
