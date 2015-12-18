@@ -19,6 +19,7 @@
 
 from lib.esl import Event
 from lib.switchlet import *
+from twisted.web.server import Request
 
 import logging
 
@@ -26,6 +27,12 @@ class Monitor(Switchlet):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
+    self.__output__ = ''
+
+  def __http__(self, message):
+    message.setResponseCode(200)
+    message.write(self.__output__)
+    message.finish()
 
   def __print__(self, message):
     output = 'Got a heartbeat @ %s ' % \
@@ -34,13 +41,18 @@ class Monitor(Switchlet):
     output += 'Max Sessions: %s ' % message.get_header('Max-Sessions')
     output += 'CPU Usage: %.2f' % (100 - float(message.get_header('Idle-CPU')))
     self.__logger__.info(output)
+    self.__output__ = output
 
   def __update__(self, message):
     self.__dispatcher__ = message.get_dispatcher()
+    command = RegisterUrlObserverCommand(self.actor_ref, '/heartbeat')
+    self.__dispatcher__.tell({ 'body': command })
 
   def on_receive(self, message):
     message = message.get('body')
     if isinstance(message, InitializeSwitchletEvent):
       self.__update__(message)
-    if isinstance(message, Event):
+    elif isinstance(message, Event):
       self.__print__(message)
+    elif isinstance(message, Request):
+      self.__http__(message)

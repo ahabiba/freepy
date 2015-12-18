@@ -243,6 +243,7 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
     super(Bootstrapper, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.server.bootstrapper')
     self.__password__ = conf.settings.freeswitch.get('password')
+    self.__queue__ = []
 
   @Action(state = 'authenticating')
   def __authenticate__(self, message):
@@ -255,6 +256,9 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
   def __finish__(self, message):
     command = UnlockDispatcherCommand()
     self.__dispatcher__.tell({ 'body': command })
+    for item in self.__queue__:
+      self.__dispatcher__.tell({ 'body': item })
+    self.__queue__ = []
 
   @Action(state = 'initializing')
   def __initialize__(self, message):
@@ -299,6 +303,8 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
           self.transition(to = 'failed', event = message)
     elif isinstance(message, QueryDispatcherResponse):
       self.transition(to = 'initializing', event = message)
+    else:
+      self.__queue__.append(message)
 
 class Dispatcher(ThreadingActor):
   def __init__(self, *args, **kwargs):
