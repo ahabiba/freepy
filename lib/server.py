@@ -350,7 +350,7 @@ class Dispatcher(ThreadingActor):
         self.__registry__.get(target).tell({ 'body': message })
         return
       pattern = rule.get('header_pattern')
-      if pattern is not None and re.search(pattern, header):
+      if pattern is not None and re.match(pattern, header) is not None:
         self.__registry__.get(target).tell({ 'body': message })
         return
     if message.get_body() is not None:
@@ -361,7 +361,16 @@ class Dispatcher(ThreadingActor):
                               message.get_headers())
 
   def __dispatch_http_request__(self, message):
-    message.write('Hello\n')
+    patterns = self.__patterns__.keys()
+    for pattern in patterns:
+      result = re.match(pattern, message.path)
+      if result is not None:
+        observer = self.__patterns__.get(pattern).tell({
+          'body': message
+        })
+        return
+    message.setResponseCode(404)
+    message.write('Not Found')
     message.finish()
 
   def __dispatch_service_request__(self, message):
