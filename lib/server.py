@@ -306,6 +306,7 @@ class Dispatcher(ThreadingActor):
     self.__logger__ = logging.getLogger('lib.server.dispatcher')
     self.__locked__ = False
     self.__observers__ = dict()
+    self.__patterns__ = dict()
     self.__transactions__ = dict()
 
   def __dispatch_command__(self, message):
@@ -359,6 +360,10 @@ class Dispatcher(ThreadingActor):
       self.__logger__.warning('No route defined for:\n%s' % \
                               message.get_headers())
 
+  def __dispatch_http_request__(self, message):
+    message.write('Hello\n')
+    message.finish()
+
   def __dispatch_service_request__(self, message):
     name = message.__class__.__name__
     target = self.__mappings__.get(name)
@@ -380,6 +385,12 @@ class Dispatcher(ThreadingActor):
     if observer is not None and uuid is not None:
       self.__observers__.update({ uuid: observer })
 
+  def __register_url_observer__(self, message):
+    observer = message.get_observer()
+    pattern = message.get_pattern()
+    if observer is not None and pattern is not None:
+      self.__patterns__.update({ pattern: observer })
+
   def __stop__(self, message):
     self.__registry__.shutdown()
     self.stop()
@@ -392,6 +403,11 @@ class Dispatcher(ThreadingActor):
     uuid = message.get_job_uuid()
     if self.__observers__.has_key(uuid):
       del self.__observers__[uuid]
+
+  def __unregister_url_observer__(self, message):
+    pattern = message.get_pattern()
+    if self.__patterns__.has_key(pattern):
+      del self.__patterns__[pattern]
 
   def __update__(self, message):
     if message.get_client() is not None:
@@ -413,12 +429,18 @@ class Dispatcher(ThreadingActor):
       self.__dispatch_event__(message)
     elif isinstance(message, Command):
       self.__dispatch_command__(message)
+    elif isinstance(message, Request):
+      self.__dispatch_http_request__(message)
     elif isinstance(message, ServiceRequest):
       self.__dispatch_service_request__(message)
     elif isinstance(message, RegisterJobObserverCommand):
       self.__register_job_observer__(message)
     elif isinstance(message, UnregisterJobObserverCommand):
       self.__unregister_job_observer__(message)
+    elif isinstance(message, RegisterUrlObserverCommand):
+      self.__register_url_observer__(message)
+    elif isinstance(message, UnregisterUrlObserverCommand):
+      self.__unregister_url_observer__(message)
     elif isinstance(message, QueryDispatcherCommand):
       self.__query__(message)
     elif isinstance(message, LockDispatcherCommand):

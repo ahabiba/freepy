@@ -17,8 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.core import *
 from lib.esl import Event
+from lib.switchlet import *
 
 import logging
 
