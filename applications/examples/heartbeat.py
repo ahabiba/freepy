@@ -27,7 +27,7 @@ class Monitor(Switchlet):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
-    self.__output__ = ''
+    self.__output__ = 'Waiting for heartbeat'
 
   def __http__(self, message):
     message.setResponseCode(200)
