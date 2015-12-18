@@ -31,7 +31,7 @@ class Monitor(Switchlet):
 
   def __http__(self, message):
     message.setResponseCode(200)
-    message.write(self.__output__)
+    message.write(self.__output__ + '\n')
     message.finish()
 
   def __print__(self, message):
@@ -39,7 +39,7 @@ class Monitor(Switchlet):
              message.get_header('FreeSWITCH-IPv4')
     output += 'Sessions: %s ' % message.get_header('Session-Count')
     output += 'Max Sessions: %s ' % message.get_header('Max-Sessions')
-    output += 'CPU Usage: %.2f\n' % (100 - float(message.get_header('Idle-CPU')))
+    output += 'CPU Usage: %.2f' % (100 - float(message.get_header('Idle-CPU')))
     self.__logger__.info(output)
     self.__output__ = output
 
