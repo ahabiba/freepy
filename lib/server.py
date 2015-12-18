@@ -25,7 +25,7 @@ from lib.services import *
 from pykka import ActorRegistry, ThreadingActor
 from twisted.internet import endpoints, reactor
 from twisted.web.resource import Resource
-from twisted.web.server import Site
+from twisted.web.server import NOT_DONE_YET, Request, Site
 
 import conf.settings
 import json
@@ -64,7 +64,8 @@ class UnlockDispatcherCommand(object):
   pass
 
 class UpdateDispatcherCommand(object):
-  def __init__(self, client, registry, events, mappings, rules):
+  def __init__(self, client = None, registry = None, events = None,
+               mappings = None, rules = None):
     self.__client__ = client
     self.__registry__ = registry
     self.__events__ = events
@@ -299,33 +300,9 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
     elif isinstance(message, QueryDispatcherResponse):
       self.transition(to = 'initializing', event = message)
 
-class EventSocketDispatcherProxy(IEventSocketClientObserver):
-  def __init__(self, registry, dispatcher, events, mappings, rules):
-    self.__registry__ = registry
-    self.__dispatcher__ = dispatcher
-    self.__events__ = events
-    self.__mappings__ = mappings
-    self.__rules__ = rules
-
-  def on_event(self, event):
-    self.__dispatcher__.tell({ 'body': event })
-
-  def start(self, client):
-    event = UpdateDispatcherCommand(
-      client,
-      self.__registry__,
-      self.__events__,
-      self.__mappings__,
-      self.__rules__
-    )
-    self.__dispatcher__.tell({ 'body': event })
-
-  def stop(self):
-    self.__dispatcher__.tell({ 'body': KillDispatcherCommand() })
-
-class EventSocketDispatcher(ThreadingActor):
+class Dispatcher(ThreadingActor):
   def __init__(self, *args, **kwargs):
-    super(EventSocketDispatcher, self).__init__(*args, **kwargs)
+    super(Dispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.server.dispatcher')
     self.__locked__ = False
     self.__observers__ = dict()
@@ -417,11 +394,16 @@ class EventSocketDispatcher(ThreadingActor):
       del self.__observers__[uuid]
 
   def __update__(self, message):
-    self.__client__ = message.get_client()
-    self.__registry__ = message.get_registry()
-    self.__events__ = message.get_events()
-    self.__mappings__ = message.get_mappings()
-    self.__rules__ = message.get_rules()
+    if message.get_client() is not None:
+      self.__client__ = message.get_client()
+    if message.get_registry() is not None:
+      self.__registry__ = message.get_registry()
+    if message.get_events() is not None:
+      self.__events__ = message.get_events()
+    if message.get_mappings() is not None:
+      self.__mappings__ = message.get_mappings()
+    if message.get_rules() is not None:
+      self.__rules__ = message.get_rules()
 
   def on_receive(self, message):
     message = message.get('body')
@@ -448,8 +430,29 @@ class EventSocketDispatcher(ThreadingActor):
     elif isinstance(message, KillDispatcherCommand):
       self.__stop__(message)
 
-class HttpDispatcher(Resource):
-  pass
+class EventSocketProxy(IEventSocketClientObserver):
+  def __init__(self, dispatcher):
+    self.__dispatcher__ = dispatcher
+
+  def on_event(self, event):
+    self.__dispatcher__.tell({ 'body': event })
+
+  def start(self, client):
+    event = UpdateDispatcherCommand(client = client)
+    self.__dispatcher__.tell({ 'body': event })
+
+  def stop(self):
+    self.__dispatcher__.tell({ 'body': KillDispatcherCommand() })
+
+class HttpProxy(Resource):
+  isLeaf = True
+
+  def __init__(self, dispatcher):
+    self.__dispatcher__ = dispatcher
+
+  def render(self, request):
+    self.__dispatcher__.tell({ 'body': request })
+    return NOT_DONE_YET
 
 class ServiceLoader(object):
   def __init__(self, config, registry, mappings):
@@ -498,25 +501,35 @@ class FreepyServer(object):
       level = conf.settings.logging.get('level')
     )
     # Initialize the event socket dispatcher.
-    dispatcher = EventSocketDispatcher().start()
+    dispatcher = Dispatcher().start()
     registry = ApplicationRegistry(
       create_msg = InitializeSwitchletEvent(dispatcher),
       destroy_msg = KillSwitchletEvent()
     )
     events, mappings, rules = [], {}, []
-    ServiceLoader(conf.settings.services, registry, mappings).load()
-    ApplicationLoader(registry, events, rules).load()
-    # Create an event socket proxy and connect to FreeSWITCH.
-    proxy = EventSocketDispatcherProxy(registry, dispatcher, events, mappings, rules)
-    address = conf.settings.freeswitch.get('address')
-    port = conf.settings.freeswitch.get('port')
-    factory = EventSocketClientFactory(proxy)
-    reactor.connectTCP(address, port, factory)
-    # Initialize an HTTP dispatcher.
-    dispatcher = HttpDispatcher()
-    port = conf.settings.http.get('port')
-    factory = Site(dispatcher)
-    reactor.listenTCP(port, factory)
+    loader = ServiceLoader(conf.settings.services, registry, mappings)
+    loader.load()
+    loader = ApplicationLoader(registry, events, rules)
+    loader.load()
+    command = UpdateDispatcherCommand(registry = registry,
+                                      events = events,
+                                      mappings = mappings,
+                                      rules = rules)
+    dispatcher.tell({ 'body': command })
+    # Create message proxies.
+    esl_proxy = EventSocketProxy(dispatcher)
+    http_proxy = HttpProxy(dispatcher)
+    # Connect to the FreeSWITCH Host.
+    reactor.connectTCP(
+      conf.settings.freeswitch.get('address'),
+      conf.settings.freeswitch.get('port'),
+      EventSocketClientFactory(esl_proxy)
+    )
+    # Listen for HTTP requests.
+    reactor.listenTCP(
+      conf.settings.http.get('port'),
+      Site(http_proxy)
+    )
     # Start the reactor.
     reactor.run()
 
