@@ -26,70 +26,18 @@ from lib.fsm import *
 
 import logging
 
-# Used ONLY by monitor to transition itself into the 'expecting heartbeat' state
-# once it has had a chance to initialize.
-class StartMonitorCommand(object):
-  pass
-
-class Monitor(FiniteStateMachine, Switchlet):
-  initial_state = 'not ready'
-
-  transitions = [
-    ('not ready', 'ready'),
-    ('ready', 'expecting heartbeat'),
-    ('expecting heartbeat', 'expecting status response'),
-    ('expecting status response', 'expecting status event'),
-    ('expecting status event', 'processing status event'),
-    ('processing status event', 'expecting heartbeat')
-  ]
-
+class Monitor(Switchlet):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('heartbeat.monitor')
-    self.__dispatcher__ = None
+    self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
 
-  @Action(state = 'ready')
-  def initialize(self, message):
+  def __update__(self, message):
     self.__dispatcher__ = message.get_dispatcher()
-    command = StartMonitorCommand()
-    self.actor_ref.tell({'content': command})
-
-  @Action(state = 'expecting status response')
-  def handle_heartbeat(self, message):
-    # Ask FreeSWITCH for a status.
-    status_command = StatusCommand(self.actor_ref)
-    # Always register to receive events for specific Job-UUIDs first.
-    uuid = status_command.get_job_uuid()
-    register_command = RegisterJobObserverCommand(self.actor_ref, uuid)
-    self.__dispatcher__.tell({'content': register_command})
-    self.__logger__.info('Registered to receive events with Job-UUID: %s' % uuid)
-    # Send the status command.
-    self.__dispatcher__.tell({'content': status_command})
-
-  @Action(state = 'processing status event')
-  def handle_status_event(self, message):
-    self.__logger__.info(message.get_body())
-    uuid = message.get_header('Job-UUID')
-    command = UnregisterJobObserverCommand(uuid)
-    self.__dispatcher__.tell({'content': command})
-    self.__logger__.info('Unregistered to receive events with Job-UUID: %s' % uuid)
-    command = StartMonitorCommand()
-    self.actor_ref.tell({'content': command})
 
   def on_receive(self, message):
     # Necessary because all pykka messages must be dicts.
-    message = message.get('content')
+    message = message.get('body')
     if isinstance(message, InitializeSwitchletEvent):
-      self.transition(to = 'ready', event = message)
-    if isinstance(message, StartMonitorCommand):
-      self.transition(to = 'expecting heartbeat')
-    elif isinstance(message, Event):
-      content_type = message.get_header('Content-Type')
-      if content_type == 'command/reply':
-        self.transition(to = 'expecting status event', event = message)
-      elif content_type == 'text/event-plain':
-        name = message.get_header('Event-Name')
-        if name == 'HEARTBEAT':
-          self.transition(to = 'expecting status response', event = message)
-        elif name == 'BACKGROUND_JOB':
-          self.transition(to = 'processing status event', event = message)
+      self.__update__(message)
+    if isinstance(message, Event):
+      self.__logger__.info('Received Hearbeat.')
