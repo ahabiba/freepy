@@ -18,10 +18,10 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from lib.commands import *
-from lib.core import *
 from lib.esl import *
 from lib.fsm import *
 from lib.services import *
+from lib.switchlet import *
 from pykka import ActorRegistry, ThreadingActor
 from twisted.internet import endpoints, reactor
 from twisted.web.resource import Resource

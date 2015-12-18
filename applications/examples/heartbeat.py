@@ -50,7 +50,6 @@ class Monitor(Switchlet):
 
   def on_receive(self, message):
     message = message.get('body')
-    self.__logger__.info(message.__class__)
     if isinstance(message, InitializeSwitchletEvent):
       self.__update__(message)
     elif isinstance(message, Event):
