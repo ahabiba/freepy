@@ -85,7 +85,7 @@ class TimerService(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(TimerService, self).__init__(*args, **kwargs)
     # Initialize the timing wheels. The finest possible
-    self.__logger__ = logging.getLogger('freepy.lib.services.TimerService')
+    self.__logger__ = logging.getLogger('lib.services.TimerService')
     # granularity is 100ms.
     self.__timer_vector1__ = self.__create_vector__(256)
     self.__timer_vector2__ = self.__create_vector__(256)

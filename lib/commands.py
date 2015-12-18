@@ -27,25 +27,22 @@ try:
 except:
   from StringIO import StringIO
 
-class AuthCommand(object):
-  def __init__(self, password):
-    self.__password__ = password
-
-  def __str__(self):
-    return 'auth %s\n\n' % (self.__password__)
-
-class BackgroundCommand(object):
+class Command(object):
   def __init__(self, *args, **kwargs):
     self.__sender__ = args[0]
-    self.__job_uuid__ = uuid4().get_urn().split(':', 2)[2]
     if not self.__sender__:
       raise ValueError('The sender parameter must be a valid reference to a Pykka actor.')
 
-  def get_job_uuid(self):
-    return self.__job_uuid__
-
   def get_sender(self):
     return self.__sender__
+
+class BackgroundCommand(Command):
+  def __init__(self, *args, **kwargs):
+    super(BackgroundCommand, self).__init__(*args, **kwargs)
+    self.__job_uuid__ = uuid4().get_urn().split(':', 2)[2]
+
+  def get_job_uuid(self):
+    return self.__job_uuid__
 
 class UUIDCommand(BackgroundCommand):
   def __init__(self, *args, **kwargs):
@@ -56,6 +53,14 @@ class UUIDCommand(BackgroundCommand):
 
   def get_uuid(self):
     return self.__uuid__
+
+class AuthCommand(Command):
+  def __init__(self, *args, **kwargs):
+    super(AuthCommand, self).__init__(*args, **kwargs)
+    self.__password__ = kwargs.get('password')
+
+  def __str__(self):
+    return 'auth %s\n\n' % (self.__password__)
 
 class ACLCheckCommand(BackgroundCommand):
   '''
@@ -519,13 +524,16 @@ class EnableVerboseEventsCommand(BackgroundCommand):
   def __str__(self):
     return 'bgapi fsctl verbose_events on\nJob-UUID: %s\n\n' % self.__job_uuid__
 
-class EventsCommand(object):
-  def __init__ (self, events, format = 'plain'):
-    if(not format == 'json' and not format == 'plain' and not format == 'xml'):
-      raise ValueError('The FreeSWITCH event socket only supports the \
-        following formats: json, plain, xml')
-    self.__events__ = events
-    self.__format__ = format
+class EventsCommand(Command):
+  def __init__(self, *args, **kwargs):
+    super(EventsCommand, self).__init__(*args, **kwargs)
+    self.__events__ = kwargs.get('events', ['BACKGROUND_JOB'])
+    self.__format__ = kwargs.get('format', 'plain')
+    if(self.__format__ is not 'json' and \
+       self.__format__ is not 'plain' and \
+       self.__format__ is not 'xml'):
+      raise ValueError('The FreeSWITCH event socket only supports the ' + \
+                       'following formats: json, plain, xml')
 
   def __str__(self):
     return 'event %s %s\n\n' % (self.__format__, ' '.join(self.__events__))

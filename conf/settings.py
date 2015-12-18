@@ -26,7 +26,7 @@ from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 #   INFO
 #   DEBUG
 #   NOTSET
-logging_level = INFO
+logging_level = DEBUG
 logging_format = '%(asctime)s %(levelname)s - %(name)s - %(message)s'
 logging_filename = None # '/var/log/freepy/freepy.log'
 

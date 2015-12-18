@@ -21,11 +21,10 @@
 
 from lib.commands import *
 from lib.core import *
+from lib.esl import Event
 from lib.fsm import *
-from lib.server import Event, RegisterJobObserverCommand, UnregisterJobObserverCommand
 
 import logging
-import urllib
 
 # Used ONLY by monitor to transition itself into the 'expecting heartbeat' state
 # once it has had a chance to initialize.
