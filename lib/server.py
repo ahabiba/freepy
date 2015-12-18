@@ -493,11 +493,11 @@ class FreepyServer(object):
   def start(self):
     # Initialize application wide logging.
     logging.basicConfig(
-      filename = conf.settings.logging_filename,
-      format = conf.settings.logging_format,
-      level = conf.settings.logging_level
+      filename = conf.settings.logging.get('filename'),
+      format = conf.settings.logging.get('format'),
+      level = conf.settings.logging.get('level')
     )
-    # Initialize the server.
+    # Initialize the dispatcher.
     dispatcher = Dispatcher().start()
     registry = ApplicationRegistry(
       create_msg = InitializeSwitchletEvent(dispatcher),
@@ -506,12 +506,18 @@ class FreepyServer(object):
     events, mappings, rules = [], {}, []
     ServiceLoader(conf.settings.services, registry, mappings).load()
     ApplicationLoader(registry, events, rules).load()
+    # Create an event socket proxy and connect to FreeSWITCH.
     proxy = DispatcherEventSocketProxy(registry, dispatcher, events, mappings, rules)
-    # Create an event socket client factory and start the reactor.
     address = conf.settings.freeswitch.get('address')
     port = conf.settings.freeswitch.get('port')
     factory = EventSocketClientFactory(proxy)
     reactor.connectTCP(address, port, factory)
+    # Create an HTTP proxy.
+    proxy = DispatcherHttpProxy()
+    port = conf.settings.http.get('port')
+    factory = Site(proxy)
+    reactor.listenTCP(port, factory)
+    # Start the reactor.
     reactor.run()
 
   def stop(self):

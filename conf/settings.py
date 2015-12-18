@@ -19,23 +19,30 @@
 
 from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 
-# The level of logging desired. The possible values are:
-#   CRITICAL
-#   ERROR
-#   WARNING
-#   INFO
-#   DEBUG
-#   NOTSET
-logging_level = INFO
-logging_format = '%(asctime)s %(levelname)s - %(name)s - %(message)s'
-logging_filename = None # '/var/log/freepy/freepy.log'
-
 # The Event Socket configuration used to connect to FreeSWITCH.
 freeswitch = {
     'name':     'FreeSWITCH',
     'address':  '127.0.0.1',
     'port':      8021,
     'password': 'ClueCon'
+}
+
+# The HTTP server configuration.
+http = {
+  'port': 8080
+}
+
+# The possible logging level values are:
+#   CRITICAL
+#   ERROR
+#   WARNING
+#   INFO
+#   DEBUG
+#   NOTSET
+logging = {
+  'level': INFO,
+  'format': '%(asctime)s %(levelname)s - %(name)s - %(message)s',
+  'filename': None # '/var/log/freepy/freepy.log'
 }
 
 # A list of services to register with the dispatcher.
