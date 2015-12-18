@@ -15,14 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# Cristian Groza  <frontc18@gmail.com>
-#
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.commands import *
 from lib.core import *
 from lib.esl import Event
-from lib.fsm import *
 
 import logging
 
@@ -43,7 +39,6 @@ class Monitor(Switchlet):
     self.__dispatcher__ = message.get_dispatcher()
 
   def on_receive(self, message):
-    # Necessary because all pykka messages must be dicts.
     message = message.get('body')
     if isinstance(message, InitializeSwitchletEvent):
       self.__update__(message)
