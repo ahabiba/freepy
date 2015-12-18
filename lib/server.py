@@ -299,7 +299,7 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
     elif isinstance(message, QueryDispatcherResponse):
       self.transition(to = 'initializing', event = message)
 
-class DispatcherEventSocketProxy(IEventSocketClientObserver):
+class EventSocketDispatcherProxy(IEventSocketClientObserver):
   def __init__(self, registry, dispatcher, events, mappings, rules):
     self.__registry__ = registry
     self.__dispatcher__ = dispatcher
@@ -323,12 +323,9 @@ class DispatcherEventSocketProxy(IEventSocketClientObserver):
   def stop(self):
     self.__dispatcher__.tell({ 'body': KillDispatcherCommand() })
 
-class DispatcherHttpProxy(Resource):
-  pass
-
-class Dispatcher(ThreadingActor):
+class EventSocketDispatcher(ThreadingActor):
   def __init__(self, *args, **kwargs):
-    super(Dispatcher, self).__init__(*args, **kwargs)
+    super(EventSocketDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.server.dispatcher')
     self.__locked__ = False
     self.__observers__ = dict()
@@ -451,6 +448,9 @@ class Dispatcher(ThreadingActor):
     elif isinstance(message, KillDispatcherCommand):
       self.__stop__(message)
 
+class HttpDispatcher(Resource):
+  pass
+
 class ServiceLoader(object):
   def __init__(self, config, registry, mappings):
     self.__logger__ = logging.getLogger('lib.server.serviceloader')
@@ -497,8 +497,8 @@ class FreepyServer(object):
       format = conf.settings.logging.get('format'),
       level = conf.settings.logging.get('level')
     )
-    # Initialize the dispatcher.
-    dispatcher = Dispatcher().start()
+    # Initialize the event socket dispatcher.
+    dispatcher = EventSocketDispatcher().start()
     registry = ApplicationRegistry(
       create_msg = InitializeSwitchletEvent(dispatcher),
       destroy_msg = KillSwitchletEvent()
@@ -507,15 +507,15 @@ class FreepyServer(object):
     ServiceLoader(conf.settings.services, registry, mappings).load()
     ApplicationLoader(registry, events, rules).load()
     # Create an event socket proxy and connect to FreeSWITCH.
-    proxy = DispatcherEventSocketProxy(registry, dispatcher, events, mappings, rules)
+    proxy = EventSocketDispatcherProxy(registry, dispatcher, events, mappings, rules)
     address = conf.settings.freeswitch.get('address')
     port = conf.settings.freeswitch.get('port')
     factory = EventSocketClientFactory(proxy)
     reactor.connectTCP(address, port, factory)
-    # Create an HTTP proxy.
-    proxy = DispatcherHttpProxy()
+    # Initialize an HTTP dispatcher.
+    dispatcher = HttpDispatcher()
     port = conf.settings.http.get('port')
-    factory = Site(proxy)
+    factory = Site(dispatcher)
     reactor.listenTCP(port, factory)
     # Start the reactor.
     reactor.run()
