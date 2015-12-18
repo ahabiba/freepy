@@ -17,7 +17,6 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.fsm import *
 from pykka import ThreadingActor
 
 class InitializeSwitchletEvent(object):
@@ -41,7 +40,7 @@ class RegisterJobObserverCommand(object):
   def get_observer(self):
     return self.__observer__
 
-class Switchlet(FiniteStateMachine, ThreadingActor):
+class Switchlet(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(Switchlet, self).__init__(*args, **kwargs)
 
