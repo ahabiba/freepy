@@ -24,7 +24,8 @@ from lib.fsm import *
 from lib.services import *
 from pykka import ActorRegistry, ThreadingActor
 from twisted.internet import endpoints, reactor
-from twisted.web import resource, server
+from twisted.web.resource import Resource
+from twisted.web.server import Site
 
 import conf.settings
 import json
@@ -298,7 +299,7 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
     elif isinstance(message, QueryDispatcherResponse):
       self.transition(to = 'initializing', event = message)
 
-class DispatcherProxy(IEventSocketClientObserver):
+class DispatcherEventSocketProxy(IEventSocketClientObserver):
   def __init__(self, registry, dispatcher, events, mappings, rules):
     self.__registry__ = registry
     self.__dispatcher__ = dispatcher
@@ -321,6 +322,9 @@ class DispatcherProxy(IEventSocketClientObserver):
 
   def stop(self):
     self.__dispatcher__.tell({ 'body': KillDispatcherCommand() })
+
+class DispatcherHttpProxy(Resource):
+  pass
 
 class Dispatcher(ThreadingActor):
   def __init__(self, *args, **kwargs):
@@ -502,7 +506,7 @@ class FreepyServer(object):
     events, mappings, rules = [], {}, []
     ServiceLoader(conf.settings.services, registry, mappings).load()
     ApplicationLoader(registry, events, rules).load()
-    proxy = DispatcherProxy(registry, dispatcher, events, mappings, rules)
+    proxy = DispatcherEventSocketProxy(registry, dispatcher, events, mappings, rules)
     # Create an event socket client factory and start the reactor.
     address = conf.settings.freeswitch.get('address')
     port = conf.settings.freeswitch.get('port')

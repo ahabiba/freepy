@@ -31,6 +31,14 @@ class Monitor(Switchlet):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
 
+  def __print__(self, message):
+    output = 'Got a heartbeat @ %s ' % \
+             message.get_header('FreeSWITCH-IPv4')
+    output += 'Sessions: %s ' % message.get_header('Session-Count')
+    output += 'Max Sessions: %s ' % message.get_header('Max-Sessions')
+    output += 'CPU Usage: %.2f' % (100 - float(message.get_header('Idle-CPU')))
+    self.__logger__.info(output)
+
   def __update__(self, message):
     self.__dispatcher__ = message.get_dispatcher()
 
@@ -40,4 +48,4 @@ class Monitor(Switchlet):
     if isinstance(message, InitializeSwitchletEvent):
       self.__update__(message)
     if isinstance(message, Event):
-      self.__logger__.info('Received Hearbeat.')
+      self.__print__(message)

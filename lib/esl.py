@@ -188,7 +188,7 @@ class EventSocketClient(Protocol):
 
 class EventSocketClientFactory(ReconnectingClientFactory):
   def __init__(self, observer):
-    self.__logger__ = logging.getLogger('freepy.lib.esl.eventsocketclientfactory')
+    self.__logger__ = logging.getLogger('lib.esl.eventsocketclientfactory')
     self.__observer__ = observer
 
   def buildProtocol(self, addr):
