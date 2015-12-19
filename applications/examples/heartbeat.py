@@ -21,37 +21,25 @@ from lib.esl import Event
 from lib.switchlet import *
 from twisted.web.server import Request
 
+import json
 import logging
 
 class Monitor(Switchlet):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
-    self.__output__ = 'Waiting for heartbeat'
-
-  def __http_get__(self, message):
-    message.setResponseCode(200)
-    message.write(self.__output__)
-    message.write('\n')
-    message.finish()
-
-  def __print__(self, message):
-    output = 'Got a heartbeat @ %s ' % \
-             message.get_header('FreeSWITCH-IPv4')
-    output += 'Sessions: %s ' % message.get_header('Session-Count')
-    output += 'Max Sessions: %s ' % message.get_header('Max-Sessions')
-    output += 'CPU Usage: %.2f' % (100 - float(message.get_header('Idle-CPU')))
-    self.__output__ = output
-
-  def __update__(self, message):
-    self.__dispatcher__ = message.get_dispatcher()
+    self.__info__ = []
 
   def on_receive(self, message):
     message = message.get('body')
     if isinstance(message, InitializeSwitchletEvent):
-      self.__update__(message)
+      self.__dispatcher__ = message.get_dispatcher()
     elif isinstance(message, Event):
-      self.__print__(message)
+      self.__info__ = [message.get_headers()]
     elif isinstance(message, Request):
       if message.method == 'GET':
-        self.__http_get__(message)
+        message.setResponseCode(200)
+        message.write(json.dumps(self.__info__,
+                                 indent = 2,
+                                 sort_keys = True))
+        message.finish()
