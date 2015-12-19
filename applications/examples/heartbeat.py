@@ -29,9 +29,10 @@ class Monitor(Switchlet):
     self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
     self.__output__ = 'Waiting for heartbeat'
 
-  def __http__(self, message):
+  def __http_get__(self, message):
     message.setResponseCode(200)
-    message.write(self.__output__ + '\n')
+    message.write(self.__output__)
+    message.write('\n')
     message.finish()
 
   def __print__(self, message):
@@ -40,13 +41,10 @@ class Monitor(Switchlet):
     output += 'Sessions: %s ' % message.get_header('Session-Count')
     output += 'Max Sessions: %s ' % message.get_header('Max-Sessions')
     output += 'CPU Usage: %.2f' % (100 - float(message.get_header('Idle-CPU')))
-    self.__logger__.info(output)
     self.__output__ = output
 
   def __update__(self, message):
     self.__dispatcher__ = message.get_dispatcher()
-    command = RegisterUrlObserverCommand(self.actor_ref, '/heartbeat')
-    self.__dispatcher__.tell({ 'body': command })
 
   def on_receive(self, message):
     message = message.get('body')
@@ -55,4 +53,5 @@ class Monitor(Switchlet):
     elif isinstance(message, Event):
       self.__print__(message)
     elif isinstance(message, Request):
-      self.__http__(message)
+      if message.method == 'GET':
+        self.__http_get__(message)

@@ -130,6 +130,14 @@ class ApplicationLoader(object):
       if value is not None and pattern is not None or \
          value is None and pattern is None:
         return False
+    singleton = meta.get('singleton')
+    if singleton is not None and type(singleton) is not bool:
+      return False
+    if meta.has_key('urls'):
+      for url in meta.get('urls'):
+        if type(url) is not str and \
+           type(url) is not unicode:
+          return False
     return True
 
   def load(self):
@@ -312,7 +320,6 @@ class Dispatcher(ThreadingActor):
     self.__logger__ = logging.getLogger('lib.server.dispatcher')
     self.__locked__ = False
     self.__observers__ = dict()
-    self.__patterns__ = dict()
     self.__transactions__ = dict()
 
   def __dispatch_command__(self, message):
@@ -367,14 +374,18 @@ class Dispatcher(ThreadingActor):
                               message.get_headers())
 
   def __dispatch_http_request__(self, message):
-    patterns = self.__patterns__.keys()
-    for pattern in patterns:
-      result = re.match(pattern, message.path)
-      if result is not None:
-        observer = self.__patterns__.get(pattern).tell({
-          'body': message
-        })
-        return
+    for rule in self.__rules__:
+      target = rule.get('target')
+      urls = rule.get('urls')
+      if urls is None:
+        continue
+      for url in urls:
+        result = re.match(url, message.path)
+        if result is not None:
+          self.__registry__.get(target).tell({
+            'body': message
+          })
+          return
     message.setResponseCode(404)
     message.write('Not Found')
     message.finish()
@@ -400,12 +411,6 @@ class Dispatcher(ThreadingActor):
     if observer is not None and uuid is not None:
       self.__observers__.update({ uuid: observer })
 
-  def __register_url_observer__(self, message):
-    observer = message.get_observer()
-    pattern = message.get_pattern()
-    if observer is not None and pattern is not None:
-      self.__patterns__.update({ pattern: observer })
-
   def __stop__(self, message):
     self.__registry__.shutdown()
     self.stop()
@@ -418,11 +423,6 @@ class Dispatcher(ThreadingActor):
     uuid = message.get_job_uuid()
     if self.__observers__.has_key(uuid):
       del self.__observers__[uuid]
-
-  def __unregister_url_observer__(self, message):
-    pattern = message.get_pattern()
-    if self.__patterns__.has_key(pattern):
-      del self.__patterns__[pattern]
 
   def __update__(self, message):
     if message.get_client() is not None:
@@ -452,10 +452,6 @@ class Dispatcher(ThreadingActor):
       self.__register_job_observer__(message)
     elif isinstance(message, UnregisterJobObserverCommand):
       self.__unregister_job_observer__(message)
-    elif isinstance(message, RegisterUrlObserverCommand):
-      self.__register_url_observer__(message)
-    elif isinstance(message, UnregisterUrlObserverCommand):
-      self.__unregister_url_observer__(message)
     elif isinstance(message, QueryDispatcherCommand):
       self.__query__(message)
     elif isinstance(message, LockDispatcherCommand):

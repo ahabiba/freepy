@@ -40,17 +40,6 @@ class RegisterJobObserverCommand(object):
   def get_observer(self):
     return self.__observer__
 
-class RegisterUrlObserverCommand(object):
-  def __init__(self, observer, pattern):
-    self.__observer__ = observer
-    self.__pattern__ = pattern
-
-  def get_pattern(self):
-    return self.__pattern__
-
-  def get_observer(self):
-    return self.__observer__
-
 class Switchlet(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(Switchlet, self).__init__(*args, **kwargs)
@@ -61,10 +50,3 @@ class UnregisterJobObserverCommand(object):
 
   def get_job_uuid(self):
     return self.__job_uuid__
-
-class UnregisterUrlObserverCommand(object):
-  def __init__(self, pattern):
-    self.__pattern__ = pattern
-
-  def get_pattern(self):
-    return self.__pattern__
