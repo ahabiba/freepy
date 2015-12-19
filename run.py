@@ -19,10 +19,6 @@
 
 from lib.server import FreepyServer
 
-def main():
+if __name__ == "__main__":
   server = FreepyServer()
   server.start()
-
-# Start the application server!
-if __name__ == "__main__":
-  main()
