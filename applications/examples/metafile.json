@@ -1,7 +1,13 @@
 {
   "events": ["HEARTBEAT"],
-  "name": "Heartbeat Monitor",
+  "name": "Examples",
   "rules": [
+    {
+      "target": "examples.http.HelloWorld",
+      "urls": [
+        "/examples/helloworld"
+      ]
+    },
     {
       "header_name": "Event-Name",
       "header_value": "HEARTBEAT",
