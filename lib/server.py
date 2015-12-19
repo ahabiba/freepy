@@ -108,36 +108,53 @@ class ApplicationLoader(object):
     })
 
   def __is_valid__(self, meta):
-    if not meta.has_key('events') or \
-       not meta.has_key('rules'):
+    if not meta.has_key('rules'):
       return False
-    if type(meta.get('events')) is not list or \
-       type(meta.get('rules')) is not list:
+    if type(meta.get('rules')) is not list:
       return False
-    for event in meta.get('events'):
-      if type(event) is not str and \
-         type(event) is not unicode:
-        return False
     for rule in meta.get('rules'):
       if type(rule) is not dict:
         return False
-      header = rule.get('header_name')
       target = rule.get('target')
-      if header is None or target is None:
+      if target is None:
         return False
-      value = rule.get('header_value')
-      pattern = rule.get('header_pattern')
-      if value is not None and pattern is not None or \
-         value is None and pattern is None:
+      if type(target) is not str and \
+         type(target) is not unicode:
         return False
+      header = rule.get('header_name')
+      if header is not None:
+        if type(header) is not str and \
+           type(header) is not unicode:
+          return False
+        value = rule.get('header_value')
+        pattern = rule.get('header_pattern')
+        if value is not None and type(value) is not str and \
+           type(value) is not unicode:
+          return False
+        if pattern is not None and type(pattern) is not str and \
+           type(pattern) is not unicode:
+          return False
+        if value is not None and pattern is not None or \
+           value is None and pattern is None:
+          return False
+      urls = rule.get('urls')
+      if urls is not None:
+        for url in urls:
+          if type(url) is not str and \
+             type(url) is not unicode:
+            return False
+      if header is None and urls is None:
+        return False
+    if meta.has_key('events'):
+      if type(meta.get('events')) is not list:
+        return False
+      for event in meta.get('events'):
+        if type(event) is not str and \
+           type(event) is not unicode:
+          return False
     singleton = meta.get('singleton')
     if singleton is not None and type(singleton) is not bool:
       return False
-    if meta.has_key('urls'):
-      for url in meta.get('urls'):
-        if type(url) is not str and \
-           type(url) is not unicode:
-          return False
     return True
 
   def load(self):
@@ -383,7 +400,9 @@ class Dispatcher(ThreadingActor):
         result = re.match(url, message.path)
         if result is not None:
           self.__registry__.get(target).tell({
-            'body': message
+            'body': message,
+            'groups': result.groups(),
+            'groups_dict': result.groupdict()
           })
           return
     message.setResponseCode(404)
