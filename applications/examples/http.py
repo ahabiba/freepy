@@ -29,7 +29,7 @@ class HelloWorld(Switchlet):
 
   def on_receive(self, message):
     message = message.get('body')
-    if isinstance(message, HttpRequest):
+    if isinstance(message, HttpRequestEvent):
       request = message.get_request()
       if request.method == 'GET':
         request.setResponseCode(200)

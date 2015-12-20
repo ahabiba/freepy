@@ -36,7 +36,7 @@ class Monitor(Switchlet):
       self.__dispatcher__ = message.get_dispatcher()
     elif isinstance(message, Event):
       self.__info__ = [message.get_headers()]
-    elif isinstance(message, HttpRequest):
+    elif isinstance(message, HttpRequestEvent):
       request = message.get_request()
       if request.method == 'GET':
         request.setResponseCode(200)

@@ -19,7 +19,7 @@
 
 from pykka import ThreadingActor
 
-class HttpRequest(object):
+class HttpRequestEvent(object):
   def __init__(self, query_string_params, query_string_params_dict, request):
     self.__query_string_params__ = query_string_params
     self.__query_string_params_dict__ = query_string_params_dict
