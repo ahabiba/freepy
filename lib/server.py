@@ -309,25 +309,25 @@ class Bootstrapper(FiniteStateMachine, Switchlet):
     self.__dispatcher__ = message.get_dispatcher()
 
   def on_receive(self, message):
-    message = message.get('body')
-    if isinstance(message, InitializeSwitchletEvent):
-      self.__update__(message)
-    elif isinstance(message, Event):
-      content_type = message.get_header('Content-Type')
+    msg = message.get('body')
+    if isinstance(msg, InitializeSwitchletEvent):
+      self.__update__(msg)
+    elif isinstance(msg, Event):
+      content_type = msg.get_header('Content-Type')
       if content_type == 'auth/request':
-        self.transition(to = 'authenticating', event = message)
+        self.transition(to = 'authenticating', event = msg)
       elif content_type == 'command/reply':
-        reply = message.get_header('Reply-Text')
+        reply = msg.get_header('Reply-Text')
         if reply == '+OK accepted':
-          self.transition(to = 'querying', event = message)
+          self.transition(to = 'querying', event = msg)
         elif reply == '-ERR invalid':
-          self.transition(to = 'failed', event = message)
+          self.transition(to = 'failed', event = msg)
         elif reply == '+OK event listener enabled plain':
           self.transition(to = 'done')
         elif reply == '-ERR no keywords supplied':
-          self.transition(to = 'failed', event = message)
-    elif isinstance(message, QueryDispatcherResponse):
-      self.transition(to = 'initializing', event = message)
+          self.transition(to = 'failed', event = msg)
+    elif isinstance(msg, QueryDispatcherResponse):
+      self.transition(to = 'initializing', event = msg)
     else:
       self.__queue__.append(message)
 
@@ -456,31 +456,31 @@ class Dispatcher(ThreadingActor):
       self.__rules__ = message.get_rules()
 
   def on_receive(self, message):
-    message = message.get('body')
-    if message is None:
+    msg = message.get('body')
+    if msg is None:
       return
-    if isinstance(message, Event):
-      self.__dispatch_event__(message)
-    elif isinstance(message, Command):
-      self.__dispatch_command__(message)
-    elif isinstance(message, Request):
-      self.__dispatch_http_request__(message)
-    elif isinstance(message, ServiceRequest):
-      self.__dispatch_service_request__(message)
-    elif isinstance(message, RegisterJobObserverCommand):
-      self.__register_job_observer__(message)
-    elif isinstance(message, UnregisterJobObserverCommand):
-      self.__unregister_job_observer__(message)
-    elif isinstance(message, QueryDispatcherCommand):
-      self.__query__(message)
-    elif isinstance(message, LockDispatcherCommand):
-      self.__lock__(message)
-    elif isinstance(message, UnlockDispatcherCommand):
-      self.__unlock__(message)
-    elif isinstance(message, UpdateDispatcherCommand):
-      self.__update__(message)
-    elif isinstance(message, KillDispatcherCommand):
-      self.__stop__(message)
+    if isinstance(msg, Event):
+      self.__dispatch_event__(msg)
+    elif isinstance(msg, Command):
+      self.__dispatch_command__(msg)
+    elif isinstance(msg, Request):
+      self.__dispatch_http_request__(msg)
+    elif isinstance(msg, ServiceRequest):
+      self.__dispatch_service_request__(msg)
+    elif isinstance(msg, RegisterJobObserverCommand):
+      self.__register_job_observer__(msg)
+    elif isinstance(msg, UnregisterJobObserverCommand):
+      self.__unregister_job_observer__(msg)
+    elif isinstance(msg, QueryDispatcherCommand):
+      self.__query__(msg)
+    elif isinstance(msg, LockDispatcherCommand):
+      self.__lock__(msg)
+    elif isinstance(msg, UnlockDispatcherCommand):
+      self.__unlock__(msg)
+    elif isinstance(msg, UpdateDispatcherCommand):
+      self.__update__(msg)
+    elif isinstance(msg, KillDispatcherCommand):
+      self.__stop__(msg)
 
 class EventSocketProxy(IEventSocketClientObserver):
   def __init__(self, dispatcher):

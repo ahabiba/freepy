@@ -29,9 +29,9 @@ class HelloWorld(Switchlet):
     super(HelloWorld, self).__init__(*args, **kwargs)
 
   def on_receive(self, message):
-    message = message.get('body')
-    if isinstance(message, Request):
-      if message.method == 'GET':
-        message.setResponseCode(200)
-        message.write('Hello World!')
-        message.finish()
+    msg = message.get('body')
+    if isinstance(msg, Request):
+      if msg.method == 'GET':
+        msg.setResponseCode(200)
+        msg.write('Hello World!')
+        msg.finish()
