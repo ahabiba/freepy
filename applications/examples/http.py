@@ -19,7 +19,6 @@
 
 from lib.esl import Event
 from lib.switchlet import *
-from twisted.web.server import Request
 
 import json
 import logging
@@ -29,9 +28,10 @@ class HelloWorld(Switchlet):
     super(HelloWorld, self).__init__(*args, **kwargs)
 
   def on_receive(self, message):
-    msg = message.get('body')
-    if isinstance(msg, Request):
-      if msg.method == 'GET':
-        msg.setResponseCode(200)
-        msg.write('Hello World!')
-        msg.finish()
+    message = message.get('body')
+    if isinstance(message, HttpRequest):
+      request = message.get_request()
+      if request.method == 'GET':
+        request.setResponseCode(200)
+        request.write('Hello World!')
+        request.finish()

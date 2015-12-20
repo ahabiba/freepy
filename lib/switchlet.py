@@ -19,6 +19,21 @@
 
 from pykka import ThreadingActor
 
+class HttpRequest(object):
+  def __init__(self, query_string_params, query_string_params_dict, request):
+    self.__query_string_params__ = query_string_params
+    self.__query_string_params_dict__ = query_string_params_dict
+    self.__request__ = request
+
+  def get_query_string_params(self):
+    return self.__query_string_params__
+
+  def get_query_string_params_dict(self):
+    return self.__query_string_params_dict__
+
+  def get_request(self):
+    return self.__request__
+
 class InitializeSwitchletEvent(object):
   def __init__(self, dispatcher):
     self.__dispatcher__ = dispatcher

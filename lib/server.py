@@ -399,10 +399,13 @@ class Dispatcher(ThreadingActor):
       for url in urls:
         result = re.match(url, message.path)
         if result is not None:
+          request = HttpRequest(
+            result.groups(),
+            result.groupdict(),
+            message
+          )
           self.__registry__.get(target).tell({
-            'body': message,
-            'groups': result.groups(),
-            'groups_dict': result.groupdict()
+            'body': request
           })
           return
     message.setResponseCode(404)

@@ -31,15 +31,16 @@ class Monitor(Switchlet):
     self.__info__ = []
 
   def on_receive(self, message):
-    msg = message.get('body')
-    if isinstance(msg, InitializeSwitchletEvent):
-      self.__dispatcher__ = msg.get_dispatcher()
-    elif isinstance(msg, Event):
-      self.__info__ = [msg.get_headers()]
-    elif isinstance(msg, Request):
-      if msg.method == 'GET':
-        msg.setResponseCode(200)
-        msg.write(json.dumps(self.__info__,
+    message = message.get('body')
+    if isinstance(message, InitializeSwitchletEvent):
+      self.__dispatcher__ = message.get_dispatcher()
+    elif isinstance(message, Event):
+      self.__info__ = [message.get_headers()]
+    elif isinstance(message, HttpRequest):
+      request = message.get_request()
+      if request.method == 'GET':
+        request.setResponseCode(200)
+        request.write(json.dumps(self.__info__,
                                  indent = 2,
                                  sort_keys = True))
-        msg.finish()
+        request.finish()
