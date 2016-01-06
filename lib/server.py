@@ -118,12 +118,6 @@ class Bootstrap(object):
           continue
     return meta
 
-  def __patch_meta__(self, meta):
-    for item in meta:
-      for rule in item.get('rules'):
-        rule.update({ 'target': 'applications.%s' % rule.get('target')})
-    return meta
-
   def start(self):
     logging.basicConfig(
       filename = settings.logging.get('filename'),
@@ -131,7 +125,6 @@ class Bootstrap(object):
       level = settings.logging.get('level')
     )
     meta = self.__load_meta__()
-    meta = self.__patch_meta__(meta)
     server = self.__create_server__(meta)
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
@@ -156,7 +149,6 @@ class Server(ThreadingActor):
       destroy_msg = ServerDestroyEvent()
     )
     self.__start_services__()
-    self.__start_applications__()
 
   def __fqn__(self, obj):
     module = obj.__class__.__module__
@@ -170,23 +162,10 @@ class Server(ThreadingActor):
         recipient.tell({ 'body': message })
 
   def __register__(self, message):
-    self.__applications__.register(message.fqn(), message.singleton())
-
-  def __start_applications__(self):
-    for item in self.__meta__:
-      try:
-        for rule in item.get('rules'):
-          singleton = rule.get('singleton')
-          target = rule.get('target')
-          if singleton is not None:
-            self.__applications__.register(target, singleton = singleton)
-          else:
-            self.__applications__.register(target)
-      except Exception as e:
-        name = item.get('name')
-        if name is not None:
-          self.__logger__.error('There was an error loading %s' % name)
-        self.__logger__.exception(e)
+    self.__applications__.register(
+      'applications.%s' % message.fqn(),
+      message.singleton()
+    )
 
   def __start_services__(self):
     for service in settings.services:
@@ -211,7 +190,7 @@ class Server(ThreadingActor):
 
   def __unicast__(self, message):
     recipient = None
-    target = message.target()
+    target = 'applications.%s' % message.target()
     if self.__services__.exists(target):
       recipient = self.__services__.get(target)
     elif self.__applications__.exists(target):

@@ -366,22 +366,30 @@ class EventSocketDispatcher(ThreadingActor):
       self.__rules__ = []
       self.__server__ = message.server()
       for item in message.meta():
-        try:
-          for rule in item.get('rules'):
-            events = item.get('events')
-            if events is not None and len(events) > 0:
-              self.__events__.extend(events)
-            header = rule.get('header_name')
-            value = rule.get('header_value')
-            pattern = rule.get('header_pattern')
-            if header is not None and value is not None or \
-               pattern is not None:
-              self.__rules__.append(rule)
-        except Exceptions as e:
-          name = item.get('name')
-          if name is not None:
-            self.__logger__.error('There was an error loading %s' % name)
-          self.__logger__.exception(e)
+        if item.has_key('freeswitch'):
+          freeswitch = item.get('freeswitch')
+          events = freeswitch.get('events')
+          if events is not None and len(events) > 0:
+            self.__events__.extend(events)
+          rules = freeswitch.get('rules')
+          if rules is not None and len(rules) > 0:
+            try:
+              for rule in rules:
+                header = rule.get('header_name')
+                value = rule.get('header_value')
+                pattern = rule.get('header_pattern')
+                if header is not None and value is not None or \
+                   pattern is not None:
+                  self.__rules__.append(rule)
+                  self.__server__.tell({
+                    'body': RegisterActorCommand(rule.get('target'),
+                                                 rule.get('singleton'))
+                  })
+            except Exception as e:
+              name = item.get('name')
+              if name is not None:
+                self.__logger__.error('There was an error loading %s' % name)
+              self.__logger__.exception(e)
       self.__events__ = set(self.__events__)
       self.__start__()
 

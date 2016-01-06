@@ -18,8 +18,8 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from pykka import ThreadingActor
-from lib.server import RouteMessageCommand, ServerDestroyEvent, \
-                       ServerInitEvent
+from lib.server import RegisterActorCommand, RouteMessageCommand, \
+                       ServerDestroyEvent, ServerInitEvent
 from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET, Request, Site
@@ -81,16 +81,24 @@ class HttpDispatcher(ThreadingActor):
     self.__server__ = message.server()
     self.__rules__ = []
     for item in message.meta():
-      try:
-        for rule in item.get('rules'):
-          urls = rule.get('urls')
-          if urls is not None and len(urls) > 0:
-            self.__rules__.append(rule)
-      except Exceptions as e:
-        name = item.get('name')
-        if name is not None:
-          self.__logger__.error('There was an error loading %s' % name)
-        self.__logger__.exception(e)
+      if item.has_key('http'):
+        http = item.get('http')
+        rules = http.get('rules')
+        if rules is not None and len(rules) > 0:
+          try:
+            for rule in rules:
+              urls = rule.get('urls')
+              if urls is not None and len(urls) > 0:
+                self.__rules__.append(rule)
+                self.__server__.tell({
+                  'body': RegisterActorCommand(rule.get('target'),
+                                               rule.get('singleton'))
+                })
+          except Exception as e:
+            name = item.get('name')
+            if name is not None:
+              self.__logger__.error('There was an error loading %s' % name)
+            self.__logger__.exception(e)
     self.__start__()
 
   def __start__(self):
