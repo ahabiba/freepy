@@ -33,10 +33,10 @@ class ReceiveTimeoutCommand(object):
   def get_sender(self):
     return self.__sender__
 
-  def get_timeout(self):
+  def timeout(self):
     return self.__timeout__
 
-  def is_recurring(self):
+  def recurring(self):
     return self.__recurring__
 
 class StopTimeoutCommand(object):
@@ -114,8 +114,8 @@ class TimerService(ThreadingActor):
       previous_bucket = vector[index - 1]
       while len(bucket) > 0:
         timer = bucket.popleft()
-        expires = timer.get_expires() - elapsed
-        timer.set_expires(expires)
+        expires = timer.expires() - elapsed
+        timer.expires(expires)
         node = previous_bucket.append(timer)
         self.__update_lookup_table__(previous_bucket, node)
 
@@ -126,8 +126,8 @@ class TimerService(ThreadingActor):
     tick = self.__current_tick__
     timers = self.__timer_vector2__[0]
     for timer in timers:
-      expires = timer.get_expires() - 25600
-      timer.set_expires(expires)
+      expires = timer.expires() - 25600
+      timer.expires(expires)
       self.__vector1_insert__(timer)
     timers.clear()
     self.__cascade_vector__(self.__timer_vector2__, 25600)
@@ -144,8 +144,8 @@ class TimerService(ThreadingActor):
     tick = self.__current_tick__
     timers = self.__timer_vector3__[0]
     for timer in timers:
-      expires = timer.get_expires() - 6553600
-      timer.set_expires(expires)
+      expires = timer.expires() - 6553600
+      timer.expires(expires)
       self.__vector2_insert__(timer)
     timers.clear()
     self.__cascade_vector__(self.__timer_vector3__, 6553600)
@@ -162,8 +162,8 @@ class TimerService(ThreadingActor):
     tick = self.__current_tick__
     timers = self.__timer_vector4__[0]
     for timer in timers:
-      expires = timer.get_expires() - 1677721600
-      timer.set_expires(expires)
+      expires = timer.expires() - 1677721600
+      timer.expires(expires)
       self.__vector3_insert__(timer)
     timers.clear()
     self.__cascade_vector__(self.__timer_vector4__, 1677721600)
@@ -205,9 +205,9 @@ class TimerService(ThreadingActor):
     Arguments: timer - The timer to be shceduled.
     '''
     tick = self.__current_tick__
-    timeout = timer.get_timeout()
+    timeout = timer.timeout()
     expires = (tick % 256) * 100 + self.__round__(timeout)
-    timer.set_expires(expires)
+    timer.expires(expires)
     if expires <= 25600:
       self.__vector1_insert__(timer)
     elif expires <= 6553600:
@@ -226,12 +226,12 @@ class TimerService(ThreadingActor):
     recurring = list()
     while len(timers) > 0:
       timer = timers.popleft()
-      timer.get_observer().tell({ 'body': self.__timeout__ })
-      if timer.is_recurring():
+      timer.observer().tell({ 'body': self.__timeout__ })
+      if timer.recurring():
         recurring.append(timer)
       else:
         lookup_table = self.__actor_lookup_table__
-        urn = timer.get_observer().actor_urn
+        urn = timer.observer().actor_urn
         location = lookup_table.get(urn)
         if location:
           del lookup_table[urn]
@@ -259,7 +259,7 @@ class TimerService(ThreadingActor):
     '''
     Updates a lookup table used for O(1) timer removal.
     '''
-    urn = node.value.get_observer().actor_urn
+    urn = node.value.observer().actor_urn
     location = {
       'vector': vector,
       'node': node
@@ -273,7 +273,7 @@ class TimerService(ThreadingActor):
     Arguments: timer - The timer to be inserted.
     '''
     vector = self.__timer_vector1__
-    bucket = timer.get_expires() / 100 - 1
+    bucket = timer.expires() / 100 - 1
     node = vector[bucket].append(timer)
     self.__update_lookup_table__(vector[bucket], node)
 
@@ -284,7 +284,7 @@ class TimerService(ThreadingActor):
     Arguments: timer - The timer to be inserted.
     '''
     vector = self.__timer_vector2__
-    bucket = timer.get_expires() / 25600 - 1
+    bucket = timer.expires() / 25600 - 1
     node = vector[bucket].append(timer)
     self.__update_lookup_table__(vector[bucket], node)
 
@@ -295,7 +295,7 @@ class TimerService(ThreadingActor):
     Arguments: timer - The timer to be inserted.
     '''
     vector = self.__timer_vector3__
-    bucket = timer.get_expires() / 6553600 - 1
+    bucket = timer.expires() / 6553600 - 1
     node = vector[bucket].append(timer)
     self.__update_lookup_table__(vector[bucket], node)
 
@@ -306,7 +306,7 @@ class TimerService(ThreadingActor):
     Arguments: timer - The timer to be inserted.
     '''
     vector = self.__timer_vector4__
-    bucket = timer.get_expires() / 1677721600 - 1
+    bucket = timer.expires() / 1677721600 - 1
     node = vector[bucket].append(timer)
     self.__update_lookup_table__(vector[bucket], node)
 
@@ -326,9 +326,9 @@ class TimerService(ThreadingActor):
     if isinstance(message, ReceiveTimeoutCommand):
       uuid = message.get_sender().actor_urn
       if not self.__actor_lookup_table__.has_key(uuid):
-        timeout = message.get_timeout()
+        timeout = message.timeout()
         observer = message.get_sender()
-        recurring = message.is_recurring()
+        recurring = message.recurring()
         timer = TimerService.Timer(observer, timeout, recurring)
         self.__schedule__(timer)
       else:
@@ -359,17 +359,17 @@ class TimerService(ThreadingActor):
       self.__timeout__ = timeout
       self.__expires__ = 0
 
-    def get_expires(self):
-      return self.__expires__
+    def expires(self, *args):
+      if len(args) == 0:
+        return self.__expires__
+      else:
+        self.__expires__ = args[0]
 
-    def get_observer(self):
+    def observer(self):
       return self.__observer__
 
-    def get_timeout(self):
+    def timeout(self):
       return self.__timeout__
 
-    def is_recurring(self):
+    def recurring(self):
       return self.__recurring__
-
-    def set_expires(self, expires):
-      self.__expires__ = expires
