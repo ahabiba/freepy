@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "freepy",
-    version = "1.0.1",
+    version = "2.0.0",
     packages = find_packages('src'),
     package_dir = { '':'src' },
     install_requires=[ 'jinja2 == 2.8', 'llist == 0.4',

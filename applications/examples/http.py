@@ -17,21 +17,19 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.esl import Event
-from lib.switchlet import *
+from pykka import ThreadingActor
+from services.http import HttpRequestEvent
 
-import json
-import logging
-
-class HelloWorld(Switchlet):
+class HelloWorld(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(HelloWorld, self).__init__(*args, **kwargs)
 
   def on_receive(self, message):
     message = message.get('body')
     if isinstance(message, HttpRequestEvent):
-      request = message.get_request()
+      request = message.request()
       if request.method == 'GET':
         request.setResponseCode(200)
         request.write('Hello World!')
         request.finish()
+        self.stop()

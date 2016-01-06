@@ -17,16 +17,14 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
+from lib.server import RouteMessageCommand
 from llist import dllist
 from pykka import ThreadingActor
 from threading import Thread
 
 import logging, time
 
-class ServiceRequest(object):
-  pass
-
-class ReceiveTimeoutCommand(ServiceRequest):
+class ReceiveTimeoutCommand(object):
   def __init__(self, sender, timeout, recurring = False):
     self.__sender__ = sender
     self.__timeout__ = timeout
@@ -41,7 +39,7 @@ class ReceiveTimeoutCommand(ServiceRequest):
   def is_recurring(self):
     return self.__recurring__
 
-class StopTimeoutCommand(ServiceRequest):
+class StopTimeoutCommand(object):
   def __init__(self, sender):
     self.__sender__ = sender
 
@@ -67,7 +65,7 @@ class MonotonicClock(Thread):
     while self.__running__:
       time.sleep(self.__interval__)
       if self.__running__:
-        self.__actor__.tell({'content': self.__event__})
+        self.__actor__.tell({'body': self.__event__})
       else:
         break
 
@@ -85,7 +83,7 @@ class TimerService(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(TimerService, self).__init__(*args, **kwargs)
     # Initialize the timing wheels. The finest possible
-    self.__logger__ = logging.getLogger('lib.services.TimerService')
+    self.__logger__ = logging.getLogger('lib.timer.TimerService')
     # granularity is 100ms.
     self.__timer_vector1__ = self.__create_vector__(256)
     self.__timer_vector2__ = self.__create_vector__(256)
@@ -228,7 +226,7 @@ class TimerService(ThreadingActor):
     recurring = list()
     while len(timers) > 0:
       timer = timers.popleft()
-      timer.get_observer().tell({'content': self.__timeout__})
+      timer.get_observer().tell({ 'body': self.__timeout__ })
       if timer.is_recurring():
         recurring.append(timer)
       else:
@@ -324,12 +322,7 @@ class TimerService(ThreadingActor):
 
     Arguments: message - The message to be processed.
     '''
-    # This is necessary because all Pykka messages
-    # must be of type dict.
-    message = message.get('content')
-    if not message:
-      return
-    # Handle the message.
+    message = message.get('body')
     if isinstance(message, ReceiveTimeoutCommand):
       uuid = message.get_sender().actor_urn
       if not self.__actor_lookup_table__.has_key(uuid):

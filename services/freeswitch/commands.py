@@ -27,21 +27,21 @@ try:
 except:
   from StringIO import StringIO
 
-class Command(object):
+class EventSocketCommand(object):
   def __init__(self, *args, **kwargs):
     self.__sender__ = args[0]
     if not self.__sender__:
-      raise ValueError('The sender parameter must be a valid reference to a Pykka actor.')
+      raise ValueError('The sender parameter must be a valid reference to an actor.')
 
-  def get_sender(self):
+  def sender(self):
     return self.__sender__
 
-class BackgroundCommand(Command):
+class BackgroundCommand(EventSocketCommand):
   def __init__(self, *args, **kwargs):
     super(BackgroundCommand, self).__init__(*args, **kwargs)
     self.__job_uuid__ = uuid4().get_urn().split(':', 2)[2]
 
-  def get_job_uuid(self):
+  def job_uuid(self):
     return self.__job_uuid__
 
 class UUIDCommand(BackgroundCommand):
@@ -51,10 +51,10 @@ class UUIDCommand(BackgroundCommand):
     if not self.__uuid__:
       raise ValueError('The value of uuid must be a valid UUID.')
 
-  def get_uuid(self):
+  def uuid(self):
     return self.__uuid__
 
-class AuthCommand(Command):
+class AuthCommand(EventSocketCommand):
   def __init__(self, *args, **kwargs):
     super(AuthCommand, self).__init__(*args, **kwargs)
     self.__password__ = kwargs.get('password')
@@ -66,7 +66,7 @@ class ACLCheckCommand(BackgroundCommand):
   '''
   The ACLCheckCommand compares an ip to an ACL list.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              ip - Internet Protocol address.
              list_name - ACL list name.
   '''
@@ -80,10 +80,10 @@ class ACLCheckCommand(BackgroundCommand):
     if not self.__list_name__ :
       raise ValueError('The list name value %s is invalid' % self.__list_name__)
     
-  def get_ip(self):
+  def ip(self):
     return self.__ip__
 
-  def get_list_name(self):
+  def list_name(self):
     return self.__list_name__
 
   def __str__(self):
@@ -94,7 +94,7 @@ class AnswerCommand(UUIDCommand):
   '''
   The AnswerCommand answers a channel.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -110,7 +110,7 @@ class BreakCommand(UUIDCommand):
   issuing uuid_break will discontinue the media and the call will move on in the dialplan, script, 
   or whatever is controlling the call.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               stop_all - boolean flag.*
 
@@ -136,7 +136,7 @@ class BridgeCommand(UUIDCommand):
   '''
   Bridge two call legs together. Bridge needs atleast any one leg to be answered. 
   
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               other_uuid - universal unique identifier to Bridge.
   '''
@@ -146,7 +146,7 @@ class BridgeCommand(UUIDCommand):
     if not self.__other_uuid__:
       raise ValueError('The value of other_uuid must be a valid UUID.')
 
-  def get_other_uuid(self):
+  def other_uuid(self):
     return self.__other_uuid__
 
   def __str__(self):
@@ -159,7 +159,7 @@ class BroadcastCommand(UUIDCommand):
   If a filename is specified then it is played into the channel(s).
   To execute an application use <app_name> and <app_args> syntax.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               leg - select which leg(s) to use [aleg|bleg|both].
               path - the path to the audio file to be played into the channels.*
@@ -178,19 +178,19 @@ class BroadcastCommand(UUIDCommand):
     self.__app_name__ = kwargs.get('app_name')
     self.__app_args__ = kwargs.get('app_args')
     if self.__path__ and self.__app_name__:
-      raise RuntimeError('A broadcast command can specify either a path \
+      raise RuntimeError('A broadcast EventSocketCommand can specify either a path \
       or an app_name but not both.')
 
-  def get_leg(self):
+  def leg(self):
     return self.__leg__
 
-  def get_path(self):
+  def path(self):
     return self.__path__
 
-  def get_app_name(self):
+  def app_name(self):
     return self.__app_name__
 
-  def get_app_args(self):
+  def app_args(self):
     return self.__app_args__
 
   def __str__(self):
@@ -214,7 +214,7 @@ class ChatCommand(UUIDCommand):
   <uuid> has a receive_event handler, this message gets sent to that 
   session and is interpreted as an instant message. 
   
-  Arguments:  sender - the freepy actor sending this command.
+  Arguments:  sender - the freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               text - message to be sent.
   '''
@@ -222,7 +222,7 @@ class ChatCommand(UUIDCommand):
     super(ChatCommand, self).__init__(*args, **kwargs)
     self.__text__ = kwargs.get('text', '')
 
-  def get_text(self):
+  def text(self):
     return self.__text__
 
   def __str__(self):
@@ -233,7 +233,7 @@ class CheckUserGroupCommand(BackgroundCommand):
   '''
   Determine if a <user> is in a group. 
 
-  Arguments: sender - the freepy actor sending this command.
+  Arguments: sender - the freepy actor sending this EventSocketCommand.
              'user' - username.
              'domain' - domain name.
              'group_name' - group name.
@@ -244,13 +244,13 @@ class CheckUserGroupCommand(BackgroundCommand):
     self.__domain__ = kwargs.get('domain')
     self.__group_name__ = kwargs.get('group_name')
 
-  def get_domain(self):
+  def domain(self):
     return self.__domain__
 
-  def get_group_name(self):
+  def group_name(self):
     return self.__group_name__
 
-  def get_user(self):
+  def user(self):
     return self.__user__
 
   def __str__(self):
@@ -269,7 +269,7 @@ class DeflectCommand(UUIDCommand):
   response to uuid_deflect. If the far end reports the REFER was successful, 
   then FreeSWITCH will issue a bye on the channel. 
   
-  Arguments:  sender - the freepy actor sending this command.
+  Arguments:  sender - the freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               url - SIP url.
   '''
@@ -277,7 +277,7 @@ class DeflectCommand(UUIDCommand):
     super(DeflectCommand, self).__init__(*args, **kwargs)
     self.__url__ = kwargs.get('url')
 
-  def get_url(self):
+  def url(self):
     return self.__url__
 
   def __str__(self):
@@ -288,7 +288,7 @@ class DialedExtensionHupAllCommand(BackgroundCommand):
   '''
   Can be used to disconnect existing calls to an extension.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              clearing - clearing type. 
              extension - extension number to be disconnected.
   '''  
@@ -297,10 +297,10 @@ class DialedExtensionHupAllCommand(BackgroundCommand):
     self.__clearing__ = kwargs.get('clearing')
     self.__extension__ = kwargs.get('extension')
 
-  def get_clearing(self):
+  def clearing(self):
     return self.__clearing__
 
-  def get_extension(self):
+  def extension(self):
     return self.__extension__
 
   def __str__(self):
@@ -311,7 +311,7 @@ class DisableMediaCommand(UUIDCommand):
   '''
   Reinvite FreeSWITCH out of the media path: 
   
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -327,7 +327,7 @@ class DisableVerboseEventsCommand(BackgroundCommand):
   for a particular channel. Non-verbose events have only the pre-selected channel 
   variables in the event headers. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(DisableVerboseEventsCommand, self).__init__(*args, **kwargs)
@@ -338,12 +338,12 @@ class DisableVerboseEventsCommand(BackgroundCommand):
 class DisplayCommand(UUIDCommand):
   '''
   Updates the display on a phone if the phone supports this. This works on some SIP 
-  phones right now including Polycom and Snom. This command makes the phone re-negotiate 
+  phones right now including Polycom and Snom. This EventSocketCommand makes the phone re-negotiate 
   the codec. The SIP -> RTP Packet Size should be 0.020. If it is set to 0.030 on the SPA 
   series phones it causes a DTMF lag. When DTMF keys are pressed on the phone they are can 
   be seen on the fs_cli 4-6 seconds late. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               display - screen display.
   '''
@@ -351,7 +351,7 @@ class DisplayCommand(UUIDCommand):
     super(DisplayCommand, self).__init__(*args, **kwargs)
     self.__display__ = kwargs.get('display')
 
-    def get_display(self):
+    def display(self):
       return self.__display__
 
   def __str__(self):
@@ -362,14 +362,14 @@ class DomainExistsCommand(BackgroundCommand):
   '''
   Check if a domain exists. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              domain - domain to check.
   '''  
   def __init__(self, *args, **kwargs):
     super(DomainExistsCommand, self).__init__(*args, **kwargs)
     self.__domain__ = kwargs.get('domain')
 
-  def get_domain(self):
+  def domain(self):
     return self.__domain__
 
   def __str__(self):
@@ -380,7 +380,7 @@ class DualTransferCommand(UUIDCommand):
   '''
   Transfer each leg of a call to different destinations. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               extension_a - target extension for aleg
               dialplan_a - target dialplan for aleg
@@ -398,25 +398,25 @@ class DualTransferCommand(UUIDCommand):
     self.__context_a__ = kwargs.get('context_a')
     self.__context_b__ = kwargs.get('context_b')
     if not self.__extension_a__ and not self.__extension_b__:
-      raise RuntimeError('A dual transer command requires the extension_a \
+      raise RuntimeError('A dual transer EventSocketCommand requires the extension_a \
         and extension_b parameters to be provided.')
 
-  def get_extension_a(self):
+  def extension_a(self):
     return self.__extension_a__
 
-  def get_extension_b(self):
+  def extension_b(self):
     return self.__extension_b__
 
-  def get_dialplan_a(self):
+  def dialplan_a(self):
     return self.__dialplan_a__
 
-  def get_dialplan_b(self):
+  def dialplan_b(self):
     return self.__dialplan_b__
 
-  def get_context_a(self):
+  def context_a(self):
     return self.__context_a__
 
-  def get_context_b(self):
+  def context_b(self):
     return self.__context_b__
 
   def __str__(self):
@@ -442,7 +442,7 @@ class DumpCommand(UUIDCommand):
   '''
   Dumps all variable values for a session. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               format - variable values output format. Default output XML.
   '''
@@ -450,7 +450,7 @@ class DumpCommand(UUIDCommand):
     super(DumpCommand, self).__init__(*args, **kwargs)
     self.__format__ = kwargs.get('format', 'XML')
 
-  def get_format(self):
+  def format(self):
     return self.__format__
 
   def __str__(self):
@@ -462,7 +462,7 @@ class EarlyOkayCommand(UUIDCommand):
   Stops the process of ignoring early media, i.e. if ignore_early_media=true 
   it stops ignoring early media and responds normally. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -476,7 +476,7 @@ class EnableMediaCommand(UUIDCommand):
   '''
   Reinvite FreeSWITCH into the media path: 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -490,7 +490,7 @@ class EnableSessionHeartbeatCommand(UUIDCommand):
   '''
   Enable session Heartbeat.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               start_time - seconds in the future to start.
   '''
@@ -498,7 +498,7 @@ class EnableSessionHeartbeatCommand(UUIDCommand):
     super(EnableSessionHeartbeatCommand, self).__init__(*args, **kwargs)
     self.__start_time__ = kwargs.get('start_time') # Seconds in the future to start
 
-  def get_start_time(self):
+  def start_time(self):
     return self.__start_time__
 
   def __str__(self):
@@ -515,7 +515,7 @@ class EnableVerboseEventsCommand(BackgroundCommand):
   for a particular channel. Non-verbose events have only the pre-selected channel 
   variables in the event headers. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
   def __init__(self, *args, **kwargs):
@@ -524,7 +524,7 @@ class EnableVerboseEventsCommand(BackgroundCommand):
   def __str__(self):
     return 'bgapi fsctl verbose_events on\nJob-UUID: %s\n\n' % self.__job_uuid__
 
-class EventsCommand(Command):
+class EventsCommand(EventSocketCommand):
   def __init__(self, *args, **kwargs):
     super(EventsCommand, self).__init__(*args, **kwargs)
     self.__events__ = kwargs.get('events', ['BACKGROUND_JOB'])
@@ -542,10 +542,10 @@ class FileManagerCommand(UUIDCommand):
   '''
   Manage the audio being played into a channel from a sound file
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
-              command - a parameter which controls what action should be taken*
-              value - the value of the command**
+              EventSocketCommand - a parameter which controls what action should be taken*
+              value - the value of the EventSocketCommand**
 
   * Available Commands : 
   [speed]
@@ -559,18 +559,18 @@ class FileManagerCommand(UUIDCommand):
   '''
   def __init__(self, *args, **kwargs):
     super(FileManagerCommand, self).__init__(*args, **kwargs)
-    self.__command__ = kwargs.get('command')
+    self.__command__ = kwargs.get('EventSocketCommand')
     if not self.__command__ or not self.__command__ == 'speed' and \
       not self.__command__ == 'volume' and not self.__command__ == 'pause' and \
       not self.__command__ == 'stop' and not self.__command__ == 'truncate' and \
       not self.__command__ == 'restart' and not self.__command__ == 'seek':
-      raise ValueError('The command parameter %s is invalid.' % self.__command__)
+      raise ValueError('The EventSocketCommand parameter %s is invalid.' % self.__command__)
     self.__value__ = kwargs.get('value')
 
-  def get_command(self):
+  def command(self):
     return self.__command__
 
-  def get_value(self):
+  def value(self):
     return self.__value__
 
   def __str__(self):
@@ -585,7 +585,7 @@ class FlushDTMFCommand(UUIDCommand):
   '''
   Flush queued DTMF digits.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -599,7 +599,7 @@ class GetAudioLevelCommand(UUIDCommand):
   '''
   Get the Audio Level 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -613,7 +613,7 @@ class GetBugListCommand(UUIDCommand):
   '''
   List the media bugs on channel.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -627,7 +627,7 @@ class GetDefaultDTMFDurationCommand(BackgroundCommand):
   '''
   Gets the current value of default dtmf duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(GetDefaultDTMFDurationCommand, self).__init__(*args, **kwargs)
@@ -639,7 +639,7 @@ class GetGlobalVariableCommand(BackgroundCommand):
   '''
   Gets the value of a global variable. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              name - the name of a global variable*
 
   * If the parameter is not provided then it gets all the global variables. 
@@ -650,7 +650,7 @@ class GetGlobalVariableCommand(BackgroundCommand):
     if not self.__name__:
       raise ValueError('The name parameter is required.')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
   def __str__(self):
@@ -661,7 +661,7 @@ class GetMaxSessionsCommand(BackgroundCommand):
   '''
   Gets the value of the Maximum Sessions. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(GetMaxSessionsCommand, self).__init__(*args, **kwargs)
@@ -673,7 +673,7 @@ class GetMaximumDTMFDurationCommand(BackgroundCommand):
   '''
   Gets the current value of maximum dtmf duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(GetMaximumDTMFDurationCommand, self).__init__(*args, **kwargs)
@@ -685,7 +685,7 @@ class GetMinimumDTMFDurationCommand(BackgroundCommand):
   '''
   Gets the current value of minimum dtmf duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(GetMinimumDTMFDurationCommand, self).__init__(*args, **kwargs)
@@ -697,7 +697,7 @@ class GetSessionsPerSecondCommand(BackgroundCommand):
   '''
   Query the actual sessions-per-second. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(GetSessionsPerSecondCommand, self).__init__(*args, **kwargs)
@@ -709,7 +709,7 @@ class GetVariableCommand(UUIDCommand):
   '''
   Get a variable from a channel. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               name - the name of the variable to get from a channel
   '''
@@ -719,7 +719,7 @@ class GetVariableCommand(UUIDCommand):
     if not self.__name__:
       raise ValueError('The name parameter is requied.')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
   def __str__(self):
@@ -730,7 +730,7 @@ class GetGroupCallBridgeStringCommand(BackgroundCommand):
   '''
   Returns the bridge string defined in a call group.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              group - group name
              domain - domain name
              option - valid options [+F, +A, +E] *
@@ -752,13 +752,13 @@ class GetGroupCallBridgeStringCommand(BackgroundCommand):
       not self.__option__ == '+A' and not self.__option__ == '+E':
       raise ValueError('The option parameter %s is invalid.' % self.__option__)
 
-  def get_domain(self):
+  def domain(self):
     return self.__domain__
 
-  def get_group(self):
+  def group(self):
     return self.__group__
 
-  def get_option(self):
+  def option(self):
     return self.__option__
 
   def __str__(self):
@@ -773,7 +773,7 @@ class HoldCommand(UUIDCommand):
   '''
   Place a call on hold. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -787,7 +787,7 @@ class HupAllCommand(BackgroundCommand):
   '''
   Disconnect existing channels. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              cause - the reason.
              var_name - optional parameter variable name.
              var_value - optional parameter variable value. 
@@ -799,13 +799,13 @@ class HupAllCommand(BackgroundCommand):
     self.__var_name__ = kwargs.get('var_name')
     self.__var_value__ = kwargs.get('var_value')
 
-  def get_cause(self):
+  def cause(self):
     return self.__cause__
 
-  def get_variable_name(self):
+  def variable_name(self):
     return self.__var_name__
 
-  def get_variable_value(self):
+  def variable_value(self):
     return self.__var_value__
 
   def __str__(self):
@@ -820,7 +820,7 @@ class KillCommand(UUIDCommand):
   '''
   Reset a specific <uuid> channel. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               cause - reason for reset.
   '''
@@ -828,7 +828,7 @@ class KillCommand(UUIDCommand):
     super(KillCommand, self).__init__(*args, **kwargs)
     self.__cause__ = kwargs.get('cause')
 
-  def get_cause(self):
+  def cause(self):
     return self.__cause__
 
   def __str__(self):
@@ -843,7 +843,7 @@ class LimitCommand(UUIDCommand):
   '''
   Apply or change limit(s) on a specified uuid. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               backend - The backend to use. 
               realm - Arbitrary name.
@@ -867,16 +867,16 @@ class LimitCommand(UUIDCommand):
     self.__dialplan__ = kwargs.get('dialplan')
     self.__context__ = kwargs.get('context')
 
-  def get_backend(self):
+  def backend(self):
     return self.__backend__
 
-  def get_realm(self):
+  def realm(self):
     return self.__realm__
 
-  def get_resource(self):
+  def resource(self):
     return self.__resource__
 
-  def get_max_calls(self):
+  def max_calls(self):
     return self.__max_calls__
 
   def __str__(self):
@@ -903,14 +903,14 @@ class LoadModuleCommand(BackgroundCommand):
   '''
   Load external module 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              name - module name.
   '''  
   def __init__(self, *args, **kwargs):
     super(LoadModuleCommand, self).__init__(*args, **kwargs)
     self.__name__ = kwargs.get('name')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
   def __str__(self):
@@ -921,7 +921,7 @@ class MaskRecordingCommand(UUIDCommand):
   '''
   Mask the audio associated with the given UUID into a file.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              uuid - universal unique identifier.
              path - The path where the recording should be stored.
   '''  
@@ -940,7 +940,7 @@ class OriginateCommand(BackgroundCommand):
   '''
   Originate a new call. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              url - URL you are calling.
              extension - call extension.
              app_name - *
@@ -976,22 +976,22 @@ class OriginateCommand(BackgroundCommand):
     if not isinstance(self.__options__, list):
       raise TypeError('The options parameter must be a list type.')
     if self.__extension__ and self.__app_name__:
-      raise RuntimeError('An originate command can specify either an \
+      raise RuntimeError('An originate EventSocketCommand can specify either an \
       extension or an app_name but not both.')
 
-  def get_app_name(self):
+  def app_name(self):
     return self.__app_name__
 
-  def get_app_args(self):
+  def app_args(self):
     return self.__app_args__
 
-  def get_extension(self):
+  def extension(self):
     return self.__extension__
 
-  def get_options(self):
+  def options(self):
     return self.__options__
 
-  def get_url(self):
+  def url(self):
     return self.__url__
 
   def __str__(self):
@@ -1017,7 +1017,7 @@ class ParkCommand(UUIDCommand):
   '''
   Park call 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1031,7 +1031,7 @@ class PauseCommand(UUIDCommand):
   '''
   Pause <uuid> media 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1046,7 +1046,7 @@ class PauseSessionCreationCommand(BackgroundCommand):
   inbound or outbound may optionally be specified to pause just inbound or outbound 
   session creation, both paused if nothing specified. resume has similar behavior. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              direction - inbound or outbound or None paramater value.
   '''  
 
@@ -1054,7 +1054,7 @@ class PauseSessionCreationCommand(BackgroundCommand):
     super(PauseSessionCreationCommand, self).__init__(*args, **kwargs)
     self.__direction__ = kwargs.get('direction')
 
-  def get_direction(self):
+  def direction(self):
     return self.__direction__
 
   def __str__(self):
@@ -1068,7 +1068,7 @@ class PreAnswerCommand(UUIDCommand):
   '''
   Preanswer a channel. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1082,7 +1082,7 @@ class PreProcessCommand(UUIDCommand):
   '''
   Pre-process Channel 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1096,7 +1096,7 @@ class ReceiveDTMFCommand(UUIDCommand):
   '''
   Receve DTMF digits to <uuid> set.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               digits - Use the character w for a .5 second delay and the character W for a 1 second delay.
               tone_duration - Default tone duration is 2000ms. 
@@ -1106,10 +1106,10 @@ class ReceiveDTMFCommand(UUIDCommand):
     self.__digits__ = kwargs.get('digits')
     self.__duration__ = kwargs.get('tone_duration')
 
-  def get_digits(self):
+  def digits(self):
     return self.__digits__
 
-  def get_tone_duration(self):
+  def tone_duration(self):
     return self.__duration__
 
   def __str__(self):
@@ -1124,7 +1124,7 @@ class ReclaimMemoryCommand(BackgroundCommand):
   '''
   Reclaim Memory
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
   def __init__(self, *args, **kwargs):
@@ -1135,9 +1135,9 @@ class ReclaimMemoryCommand(BackgroundCommand):
 
 class RenegotiateMediaCommand(UUIDCommand):
   '''
-  API command to tell a channel to send a re-invite with optional list of new codecs
+  API EventSocketCommand to tell a channel to send a re-invite with optional list of new codecs
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               codec - audio/video codec.
   '''
@@ -1145,7 +1145,7 @@ class RenegotiateMediaCommand(UUIDCommand):
     super(RenegotiateMediaCommand, self).__init__(*args, **kwargs)
     self.__codec__ = kwargs.get('codec')
 
-  def get_codec(self):
+  def codec(self):
     return self.__codec__
 
   def __str__(self):
@@ -1157,7 +1157,7 @@ class ResumeSessionCreationCommand(BackgroundCommand):
   inbound or outbound may optionally be specified to resume just inbound or outbound session creation,
   both paused if nothing specified.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              direction - inbound or outbound or None paramater value.
   '''  
 
@@ -1165,7 +1165,7 @@ class ResumeSessionCreationCommand(BackgroundCommand):
     super(ResumeSessionCreationCommand, self).__init__(*args, **kwargs)
     self.__direction__ = kwargs.get('direction')
 
-  def get_direction(self):
+  def direction(self):
     return self.__direction__
 
   def __str__(self):
@@ -1179,7 +1179,7 @@ class SendDTMFCommand(UUIDCommand):
   '''
   Send DTMF digits to <uuid> set.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               digits - Use the character w for a .5 second delay and the character W for a 1 second delay.
               tone_duration - Default tone duration is 2000ms. 
@@ -1189,10 +1189,10 @@ class SendDTMFCommand(UUIDCommand):
     self.__digits__ = kwargs.get('digits')
     self.__duration__ = kwargs.get('tone_duration')
 
-  def get_digits(self):
+  def digits(self):
     return self.__digits__
 
-  def get_tone_duration(self):
+  def tone_duration(self):
     return self.__duration__
 
   def __str__(self):
@@ -1207,7 +1207,7 @@ class SendInfoCommand(UUIDCommand):
   '''
   Send info to the endpoint.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1221,7 +1221,7 @@ class SetAudioLevelCommand(UUIDCommand):
   '''
   Adjust the audio levels on a channel or mute (read/write) via a media bug.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               level - is in the range from -4 to 4, 0 being the default value. 
   '''
@@ -1232,7 +1232,7 @@ class SetAudioLevelCommand(UUIDCommand):
       self.__audio_level__ > 4.0:
       raise ValueError('The level value %s is invalid.' % self.__audio_level__)
 
-  def get_level(self):
+  def level(self):
     return self.__audio_level__
 
   def __str__(self):
@@ -1247,7 +1247,7 @@ class SetDefaultDTMFDurationCommand(BackgroundCommand):
   This value can be increased or lowered. This value is lower-bounded by min_dtmf_duration 
   and upper-bounded by max_dtmf_duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              duration - paramter value.
   '''  
 
@@ -1255,7 +1255,7 @@ class SetDefaultDTMFDurationCommand(BackgroundCommand):
     super(SetDefaultDTMFDurationCommand, self).__init__(*args, **kwargs)
     self.__duration__ = kwargs.get('duration')
 
-  def get_duration(self):
+  def duration(self):
     return self.__duration__
 
   def __str__(self):
@@ -1266,7 +1266,7 @@ class SetGlobalVariableCommand(BackgroundCommand):
   '''
   Sets the value of a global variable. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              name - name of global variable
              value - value of global variable
   '''  
@@ -1276,13 +1276,13 @@ class SetGlobalVariableCommand(BackgroundCommand):
     self.__name__ = kwargs.get('name')
     self.__value__ = kwargs.get('value')
     if not self.__name__ or not self.__value__:
-      raise RuntimeError('The set global variable command requires both name \
+      raise RuntimeError('The set global variable EventSocketCommand requires both name \
       and value parameters.')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
-  def get_value(self):
+  def value(self):
     return self.__value__
 
   def __str__(self):
@@ -1298,7 +1298,7 @@ class SetMaximumDTMFDurationCommand(BackgroundCommand):
   This setting can be lowered, but cannot exceed 192000 (the default). 
   This setting cannot be set lower than min_dtmf_duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              duration - the maximum duration if a DTMF event. 
   '''  
 
@@ -1306,7 +1306,7 @@ class SetMaximumDTMFDurationCommand(BackgroundCommand):
     super(SetMaximumDTMFDurationCommand, self).__init__(*args, **kwargs)
     self.__duration__ = kwargs.get('duration')
 
-  def get_duration(self):
+  def duration(self):
     return self.__duration__
 
   def __str__(self):
@@ -1322,7 +1322,7 @@ class SetMinimumDTMFDurationCommand(BackgroundCommand):
   You may increase this value, but cannot set it lower than 400 (the default). 
   This value cannot exceed max_dtmf_duration.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              duration - value of parameter.
   '''  
 
@@ -1330,7 +1330,7 @@ class SetMinimumDTMFDurationCommand(BackgroundCommand):
     super(SetMinimumDTMFDurationCommand, self).__init__(*args, **kwargs)
     self.__duration__ = kwargs.get('duration')
 
-  def get_duration(self):
+  def duration(self):
     return self.__duration__
 
   def __str__(self):
@@ -1341,7 +1341,7 @@ class SetMultipleVariableCommand(UUIDCommand):
   '''
   Set multiple vars on a channel. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               variables - a dictionary list of key/value pairs to set.
   '''
@@ -1363,7 +1363,7 @@ class SetSessionsPerSecondCommand(BackgroundCommand):
   '''
   This changes the sessions-per-second limit as initially set in switch.conf 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              sessions_per_second - value for paramater.
   '''  
 
@@ -1371,7 +1371,7 @@ class SetSessionsPerSecondCommand(BackgroundCommand):
     super(SetSessionsPerSecondCommand, self).__init__(*args, **kwargs)
     self.__sessions_per_second__ = kwargs.get('sessions_per_second')
 
-  def get_sessions_per_second(self):
+  def sessions_per_second(self):
     return self.__sessions_per_second__
 
   def __str__(self):
@@ -1382,7 +1382,7 @@ class SetVariableCommand(UUIDCommand):
   '''
   Set a variable on a channel.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               name - name of the variable.
               value - value of the variable.
@@ -1392,13 +1392,13 @@ class SetVariableCommand(UUIDCommand):
     self.__name__ = kwargs.get('name')
     self.__value__ = kwargs.get('value')
     if not self.__name__ or not self.__value__:
-      raise RuntimeError('The set variable command requires both name \
+      raise RuntimeError('The set variable EventSocketCommand requires both name \
       and value parameters.')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
-  def get_value(self):
+  def value(self):
     return self.__value__
 
   def __str__(self):
@@ -1409,7 +1409,7 @@ class ShutdownCommand(BackgroundCommand):
   '''
   Stop the FreeSWITCH program. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              option - paramater value [cancel, elegant, asap, restart]*
              
   * available options: 
@@ -1427,7 +1427,7 @@ class ShutdownCommand(BackgroundCommand):
       not self.__option__ == 'restart':
       raise ValueError('The option %s is an invalid option.' % self.__option__)
 
-  def get_option(self):
+  def option(self):
     return self.__option__
 
   def __str__(self):
@@ -1439,9 +1439,9 @@ class ShutdownCommand(BackgroundCommand):
 
 class SimplifyCommand(UUIDCommand):
   '''
-  This command directs FreeSWITCH to remove itself from the SIP signaling path if it can safely do so 
+  This EventSocketCommand directs FreeSWITCH to remove itself from the SIP signaling path if it can safely do so 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1455,7 +1455,7 @@ class StartDebugMediaCommand(UUIDCommand):
   '''
   Start the Debug Media.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               option - [read|write|both|vread|vwrite|vboth]
   '''
@@ -1463,7 +1463,7 @@ class StartDebugMediaCommand(UUIDCommand):
     super(StartDebugMediaCommand, self).__init__(*args, **kwargs)
     self.__option__ = kwargs.get('option')
 
-  def get_option(self):
+  def option(self):
     return self.__option__
 
   def __str__(self):
@@ -1474,7 +1474,7 @@ class StartDisplaceCommand(UUIDCommand):
   '''
   Displace the audio for the target <uuid> with the specified audio <path>. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               path - path to an audio source (wav, shout, etc...) 
               limit - number of seconds before terminating the displacement
@@ -1487,13 +1487,13 @@ class StartDisplaceCommand(UUIDCommand):
     self.__limit__ = kwargs.get('limit')
     self.__mux__ = kwargs.get('mux')
 
-  def get_limit(self):
+  def limit(self):
     return self.__limit__
 
-  def get_mux(self):
+  def mux(self):
     return self.__mux__
 
-  def get_path(self):
+  def path(self):
     return self.__path__
 
   def __str__(self):
@@ -1514,7 +1514,7 @@ class StartRecordingCommand(UUIDCommand):
   '''
   Record the audio associated with the given UUID into a file.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              uuid - universal unique identifier.
              path - The path where the recording should be stored.
              max_length - The max recording length in seconds.
@@ -1539,7 +1539,7 @@ class StatusCommand(BackgroundCommand):
   '''
   Show current status 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(StatusCommand, self).__init__(*args, **kwargs)
@@ -1551,7 +1551,7 @@ class StopDebugMediaCommand(UUIDCommand):
   '''
   Used to stop the debug media.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1565,7 +1565,7 @@ class StopDisplaceCommand(UUIDCommand):
   '''
   Stop displacing the audio for the target <uuid>
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1579,7 +1579,7 @@ class StopRecordingCommand(UUIDCommand):
   '''
   Stop recording the audio associated with the given UUID into a file.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              uuid - universal unique identifier.
              path - The path where the recording should be stored.
   '''  
@@ -1604,7 +1604,7 @@ class SyncClockCommand(BackgroundCommand):
   'fsctl sync_clock_when_idle' is much safer, which does the same sync but doesn't take effect until 
   there are 0 channels in use. That way it doesn't affect any CDRs. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
   def __init__(self, *args, **kwargs):
@@ -1617,7 +1617,7 @@ class SyncClockWhenIdleCommand(BackgroundCommand):
   '''
   You can sync the clock but have it not do it till there are 0 calls (r:2094f2d3) 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
   def __init__(self, *args, **kwargs):
     super(SyncClockWhenIdleCommand, self).__init__(*args, **kwargs)
@@ -1629,7 +1629,7 @@ class TransferCommand(UUIDCommand):
   '''
   Transfers an existing call to a specific extension within a <dialplan> and <context>.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               leg - bleg or both.
               extension - destination extension.  
@@ -1644,16 +1644,16 @@ class TransferCommand(UUIDCommand):
     self.__dialplan__ = kwargs.get('dialplan')
     self.__context__ = kwargs.get('context')
 
-  def get_context(self):
+  def context(self):
     return self.__context__
 
-  def get_dialplan(self):
+  def dialplan(self):
     return self.__dialplan__
 
-  def get_extension(self):
+  def extension(self):
     return self.__extension__
 
-  def get_leg(self):
+  def leg(self):
     return self.__leg__
 
   def __str__(self):
@@ -1676,7 +1676,7 @@ class UnholdCommand(UUIDCommand):
   '''
   Take a call off hold.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1690,7 +1690,7 @@ class UnloadModuleCommand(BackgroundCommand):
   '''
   Unload external module. 
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              name - name of external module to unload.
              force - force unload. Default set to False.
   '''  
@@ -1700,10 +1700,10 @@ class UnloadModuleCommand(BackgroundCommand):
     self.__name__ = kwargs.get('name')
     self.__force__ = kwargs.get('force', False)
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
-  def get_force(self):
+  def force(self):
     return self.__force__
 
   def __str__(self):
@@ -1718,7 +1718,7 @@ class UnmaskRecordingCommand(UUIDCommand):
   '''
   Unmask the audio associated with the given UUID into a file.
 
-  Arguments: sender - The freepy actor sending this command.
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
              uuid - universal unique identifier.
              path - The path where the recording should be stored.
   '''  
@@ -1737,7 +1737,7 @@ class UnpauseCommand(UUIDCommand):
   '''
   UnPause <uuid> media.
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
   '''
   def __init__(self, *args, **kwargs):
@@ -1751,7 +1751,7 @@ class UnsetVariableCommand(UUIDCommand):
   '''
   UnSet a variable on a channel. 
 
-  Arguments:  sender - The freepy actor sending this command.
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
               uuid - universal unique identifier.
               name - variable to be unset.
   '''
@@ -1762,7 +1762,7 @@ class UnsetVariableCommand(UUIDCommand):
       raise RuntimeError('The unset variable commands requires the name \
       parameter.')
 
-  def get_name(self):
+  def name(self):
     return self.__name__
 
   def __str__(self):

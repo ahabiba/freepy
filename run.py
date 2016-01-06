@@ -17,8 +17,7 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.server import FreepyServer
+from lib.server import Bootstrap
 
 if __name__ == "__main__":
-  server = FreepyServer()
-  server.start()
+  Bootstrap().start()

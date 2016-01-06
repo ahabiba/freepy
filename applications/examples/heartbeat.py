@@ -17,27 +17,26 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.esl import Event
-from lib.switchlet import *
-from twisted.web.server import Request
+from lib.server import ServerInfoEvent
+from pykka import ThreadingActor
+from services.http import HttpRequestEvent
+from services.freeswitch import EventSocketEvent
 
 import json
 import logging
 
-class Monitor(Switchlet):
+class Monitor(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('examples.heartbeat.monitor')
+    self.__logger__ = logging.getLogger('examples.heartbeat.Monitor')
     self.__info__ = []
 
   def on_receive(self, message):
     message = message.get('body')
-    if isinstance(message, InitializeSwitchletEvent):
-      self.__dispatcher__ = message.get_dispatcher()
-    elif isinstance(message, Event):
-      self.__info__ = [message.get_headers()]
+    if isinstance(message, EventSocketEvent):
+      self.__info__ = [message.headers()]
     elif isinstance(message, HttpRequestEvent):
-      request = message.get_request()
+      request = message.request()
       if request.method == 'GET':
         request.setResponseCode(200)
         request.write(json.dumps(self.__info__,

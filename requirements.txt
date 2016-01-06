@@ -1,4 +1,5 @@
 jinja2==2.8
 llist==0.4
 pykka==1.2.1
+sqlalchemy==1.0.10
 twisted==15.5.0
