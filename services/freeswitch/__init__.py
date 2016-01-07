@@ -381,10 +381,12 @@ class EventSocketDispatcher(ThreadingActor):
                 if header is not None and value is not None or \
                    pattern is not None:
                   self.__rules__.append(rule)
+                  singleton = rule.get('singleton')
+                  target = rule.get('target')
                   self.__server__.tell({
-                    'body': RegisterActorCommand(rule.get('target'),
-                                                 rule.get('singleton'))
+                    'body': RegisterActorCommand(target, singleton)
                   })
+                  self.__logger__.info('Registered %s endpoint' % target)
             except Exception as e:
               name = item.get('name')
               if name is not None:

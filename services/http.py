@@ -90,10 +90,12 @@ class HttpDispatcher(ThreadingActor):
               urls = rule.get('urls')
               if urls is not None and len(urls) > 0:
                 self.__rules__.append(rule)
+                singleton = rule.get('singleton')
+                target = rule.get('target')
                 self.__server__.tell({
-                  'body': RegisterActorCommand(rule.get('target'),
-                                               rule.get('singleton'))
+                  'body': RegisterActorCommand(target, singleton)
                 })
+                self.__logger__.info('Registered %s endpoint' % target)
           except Exception as e:
             name = item.get('name')
             if name is not None:

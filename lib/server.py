@@ -128,7 +128,7 @@ class Bootstrap(object):
     server = self.__create_server__(meta)
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
-      self.__logger__.critical('Exiting...')
+      self.__logger__.critical('FreePy is now shutting down!!!')
       pykka.registry.ActorRegistry.stop_all()
     signal.signal(signal.SIGINT, signal_handler)
     signal.pause()
