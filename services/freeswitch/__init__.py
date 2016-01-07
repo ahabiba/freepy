@@ -20,7 +20,7 @@
 from commands import *
 from lib.fsm import *
 from lib.server import RegisterActorCommand, RouteMessageCommand, \
-                       ServerDestroyEvent, ServerInfoEvent, ServerInitEvent
+                       ServerDestroyEvent, ServerInitEvent
 from os import SEEK_END
 from pykka import ThreadingActor
 from twisted.internet import reactor
