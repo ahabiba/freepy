@@ -343,7 +343,7 @@ class EventSocketDispatcher(ThreadingActor):
                   self.__server__.tell({
                     'body': RegisterActorCommand(target, singleton)
                   })
-                  self.__logger__.info('Registered %s endpoint' % target)
+                  self.__logger__.info('Registered %s' % target)
             except Exception as e:
               name = item.get('name')
               if name is not None:
