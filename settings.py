@@ -19,6 +19,15 @@
 
 from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 
+# The SQL Alchemy service configuration.
+databases = [
+  {
+    'name': 'telerest',
+    'url': 'postgresql://bettervoice:bettervoice@127.0.0.1:5432/telerest',
+    'orm': True
+  }
+]
+
 # The Event Socket configuration used to connect to FreeSWITCH.
 freeswitch = {
   'name':     'FreeSWITCH',
@@ -50,6 +59,22 @@ logging = {
 
 # A list of services to register with the router.
 services = [
+  {
+    'name': 'SQL Alchemy Object Relational Mapper Service',
+    'messages': [
+      'lib.sql.FetchEngineRequest',
+      'lib.sql.FetchObjectRelationalMapperRequest'
+    ],
+    'target': 'lib.sql.SQLAlchemyService'
+  },
+  {
+    'name': 'Timer Service',
+    'messages': [
+      'lib.timer.ReceiveTimeoutCommand',
+      'lib.timer.StopTimeoutCommand'
+    ],
+    'target': 'lib.timer.TimerService'
+  },
   {
     'name': 'FreeSWITCH Event Socket Service',
     'messages': [
@@ -134,13 +159,5 @@ services = [
     'name': 'HTTP Service',
     'messages': [],
     'target': 'services.http.HttpDispatcher'
-  },
-  {
-    'name': 'Timer Service',
-    'messages': [
-      'lib.timer.ReceiveTimeoutCommand',
-      'lib.timer.StopTimeoutCommand'
-    ],
-    'target': 'lib.timer.TimerService'
   }
 ]
