@@ -176,9 +176,9 @@ class Server(ThreadingActor):
   def __start_services__(self):
     for service in settings.services:
       try:
-        messages = service.get('messages')
         target = service.get('target')
         self.__services__.register(target, singleton = True)
+        messages = service.get('messages')
         if messages is not None and len(messages) > 0:
           observer = self.__services__.get(target)
           for message in messages:
