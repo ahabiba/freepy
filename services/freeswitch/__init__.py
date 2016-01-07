@@ -37,49 +37,6 @@ import re
 import settings
 import urllib
 
-class EventSocketEvent(object):
-  def __init__(self, headers, body = None):
-    self.__body__ = body
-    self.__headers__ = headers
-
-  def body(self):
-    return self.__body__
-
-  def headers(self):
-    return self.__headers__
-
-class EventSocketQueryRequest(object):
-  def __init__(self, observer):
-    self.__observer__ = observer
-
-  def observer(self):
-    return self.__observer__
-
-class EventSocketQueryResponse(object):
-  def __init__(self, events):
-    self.__events__ = events
-
-  def events(self):
-    return self.__events__
-
-class EventSocketProxyInitEvent(object):
-  def __init__(self, client):
-    self.__client__ = client
-
-  def client(self):
-    return self.__client__
-
-class EventSocketLockCommand(object):
-  def __init__(self, owner):
-    self.__owner__ = owner
-
-  def owner(self):
-    return self.__owner__
-
-class EventSocketUnlockCommand(object):
-  def __init__(self, *args, **kwargs):
-    super(EventSocketUnlockCommand, self).__init__(*args, **kwargs)
-
 class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
   initial_state = 'idle'
 
@@ -437,3 +394,46 @@ class EventSocketProxy(object):
     self.__dispatcher__.tell({
       'body': EventSocketProxyInitEvent(client)
     })
+
+class EventSocketEvent(object):
+  def __init__(self, headers, body = None):
+    self.__body__ = body
+    self.__headers__ = headers
+
+  def body(self):
+    return self.__body__
+
+  def headers(self):
+    return self.__headers__
+
+class EventSocketQueryRequest(object):
+  def __init__(self, observer):
+    self.__observer__ = observer
+
+  def observer(self):
+    return self.__observer__
+
+class EventSocketQueryResponse(object):
+  def __init__(self, events):
+    self.__events__ = events
+
+  def events(self):
+    return self.__events__
+
+class EventSocketProxyInitEvent(object):
+  def __init__(self, client):
+    self.__client__ = client
+
+  def client(self):
+    return self.__client__
+
+class EventSocketLockCommand(object):
+  def __init__(self, owner):
+    self.__owner__ = owner
+
+  def owner(self):
+    return self.__owner__
+
+class EventSocketUnlockCommand(object):
+  def __init__(self, *args, **kwargs):
+    super(EventSocketUnlockCommand, self).__init__(*args, **kwargs)

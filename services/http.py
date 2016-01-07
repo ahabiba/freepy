@@ -28,21 +28,6 @@ import logging
 import re
 import settings
 
-class HttpRequestEvent(object):
-  def __init__(self, params, params_dict, request):
-    self.__params__ = params
-    self.__params_dict__ = params_dict
-    self.__request__ = request
-
-  def params(self):
-    return self.__params__
-
-  def params_dict(self):
-    return self.__params_dict__
-
-  def request(self):
-    return self.__request__
-
 class HttpDispatcher(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(HttpDispatcher, self).__init__(*args, **kwargs)
@@ -126,3 +111,18 @@ class HttpProxy(Resource):
   def render(self, request):
     self.__dispatcher__.tell({ 'body': request })
     return NOT_DONE_YET
+
+class HttpRequestEvent(object):
+  def __init__(self, params, params_dict, request):
+    self.__params__ = params
+    self.__params_dict__ = params_dict
+    self.__request__ = request
+
+  def params(self):
+    return self.__params__
+
+  def params_dict(self):
+    return self.__params_dict__
+
+  def request(self):
+    return self.__request__
