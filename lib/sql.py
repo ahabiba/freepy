@@ -28,7 +28,7 @@ import settings
 class SQLAlchemyService(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(SQLAlchemyService, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('lib.orm.ORMService')
+    self.__logger__ = logging.getLogger('lib.sql.SQLAlchemyService')
     self.__engines__ = {}
     self.__session_makers__ = {}
     self.__start__()
@@ -60,6 +60,8 @@ class SQLAlchemyService(ThreadingActor):
             self.__session_makers__.update({
               database.get('name'): session_maker
             })
+          self.__logger__.info('Loaded %s database resource' % \
+                               database.get('name'))
     except Exception as e:
       self.__logger__.critical(
         'There was an error initializing the SQL Alchemy service.'
