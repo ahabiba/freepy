@@ -178,13 +178,14 @@ class Server(ThreadingActor):
       try:
         messages = service.get('messages')
         target = service.get('target')
+        self.__services__.register(target, singleton = True)
         if messages is not None and len(messages) > 0:
+          observer = self.__services__.get(target)
           for message in messages:
             if not self.__observers__.has_key(message):
-              self.__observers__.update({ message: [target] })
+              self.__observers__.update({ message: [observer] })
             else:
-              self.__observers__.get(message).append(target)
-        self.__services__.register(target, singleton = True)
+              self.__observers__.get(message).append(observer)
         if service.has_key('name'):
           self.__logger__.info('Loaded %s' % service.get('name'))
       except Exception as e:
