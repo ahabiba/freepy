@@ -153,8 +153,12 @@ class Server(ThreadingActor):
     )
 
   def __fqn__(self, obj):
-    module = obj.__class__.__module__
-    klass = obj.__class__.__name__
+    if type(obj) == type:
+      module = obj.__module__
+      klass = obj.__name__
+    else:
+      module = obj.__class__.__module__
+      klass = obj.__class__.__name__
     return '%s.%s' % (module, klass)
 
   def __broadcast__(self, fqn, message):
