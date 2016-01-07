@@ -126,6 +126,9 @@ class Bootstrap(object):
     )
     meta = self.__load_meta__()
     server = self.__create_server__(meta)
+    server.tell({
+      'body': BootstrapCompleteEvent()
+    })
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
       self.__logger__.critical('FreePy is now shutting down!!!')
@@ -148,7 +151,6 @@ class Server(ThreadingActor):
       create_msg = ServerInitEvent(self.actor_ref, self.__meta__),
       destroy_msg = ServerDestroyEvent()
     )
-    self.__start_services__()
 
   def __fqn__(self, obj):
     module = obj.__class__.__module__
@@ -228,11 +230,17 @@ class Server(ThreadingActor):
       self.__unwatch__(message)
     elif isinstance(message, RegisterActorCommand):
       self.__register__(message)
+    elif isinstance(message, BootstrapCompleteEvent):
+      self.__start_services__()
 
   def on_stop(self):
     self.__applications__.shutdown()
     self.__services__.shutdown()
     reactor.stop()
+
+class BootstrapCompleteEvent(object):
+  def __init__(self, *args, **kwargs):
+    super(BootstrapCompleteEvent, self).__init__(*args, **kwargs)
 
 class RegisterActorCommand(object):
   def __init__(self, fqn, singleton = False):
