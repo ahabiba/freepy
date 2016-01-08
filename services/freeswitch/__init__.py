@@ -326,10 +326,10 @@ class EventSocketDispatcher(ThreadingActor):
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
-            self.__observer__.tell({ 'body': message })
+            observer.tell({ 'body': message })
         target_value = watch.header_value()
         if target_value is not None and header_value == target_value:
-          self.__observer__.tell({ 'body': message })
+          observer.tell({ 'body': message })
 
   def __initialize__(self, message):
     if isinstance(message, EventSocketProxyInitEvent):
@@ -403,6 +403,10 @@ class EventSocketDispatcher(ThreadingActor):
       self.__dispatch_command__(message)
     elif isinstance(message, EventSocketEvent):
       self.__dispatch_event__(message)
+    elif isinstance(message, EventSocketWatchCommand):
+      self.__watch__(message)
+    elif isinstance(message, EventSocketUnwatchCommand):
+      self.__unwatch__(message)
     elif isinstance(message, EventSocketLockCommand):
       self.__lock__(message)
     elif isinstance(message, EventSocketUnlockCommand):
