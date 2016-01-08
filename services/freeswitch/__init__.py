@@ -317,17 +317,17 @@ class EventSocketDispatcher(ThreadingActor):
           })
       # Dispatch incoming events using watches.
       for watch in self.__watches__:
-        observer = watch.get('observer')
-        header_name = watch.get('header_name')
+        observer = watch.observer()
+        header_name = watch.header_name()
         header_value = message.headers().get(header_name)
         if header_value is None:
           continue
-        target_pattern = watch.get('header_pattern')
+        target_pattern = watch.header_pattern()
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
             self.__observer__.tell({ 'body': message })
-        target_value = watch.get('header_value')
+        target_value = watch.header_value()
         if target_value is not None and header_value == target_value:
           self.__observer__.tell({ 'body': message })
 
@@ -388,22 +388,14 @@ class EventSocketDispatcher(ThreadingActor):
     for idx in xrange(len(self.__watches__)):
       watch = self.__watches__[idx]
       if message.observer().actor_urn == \
-         watch.get('observer').actor_urn:
-        if message.header_name() == \
-           watch.get('header_name') and \
-           message.header_pattern() == \
-           watch.get('header_pattern') and \
-           message.header_value() == \
-           watch.get('header_value'):
+         watch.observer().actor_urn:
+        if message.header_name() == watch.header_name() and \
+           message.header_pattern() == watch.header_pattern() and \
+           message.header_value() == watch.header_value():
           del self.__watches__[idx]
 
   def __watch__(self, message):
-    self.__watches__.append({
-      'header_name': message.header_name(),
-      'header_pattern': message.header_pattern(),
-      'header_value': message.header_value(),
-      'observer': message.observer()
-    })
+    self.__watches__.append(message)
 
   def on_receive(self, message):
     message = message.get('body')
