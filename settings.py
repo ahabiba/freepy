@@ -78,6 +78,7 @@ services = [
   {
     'name': 'FreeSWITCH Event Socket Service',
     'messages': [
+      'services.freeswitch.EventSocketWatchCommand',
       'services.freeswitch.commands.ACLCheckCommand',
       'services.freeswitch.commands.AnswerCommand',
       'services.freeswitch.commands.BreakCommand',

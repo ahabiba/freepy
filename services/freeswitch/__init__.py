@@ -263,6 +263,7 @@ class EventSocketDispatcher(ThreadingActor):
     self.__observers__ = {}
     self.__owner__ = None
     self.__transactions__ = {}
+    self.__watches__ = []
 
   def __dispatch_command__(self, message):
     observer = message.sender()
@@ -295,7 +296,7 @@ class EventSocketDispatcher(ThreadingActor):
         if observer is not None and observer.is_alive():
           observer.tell({ 'body', message })
         del self.__observers__[uuid]
-      # Dispatch incoming events.
+      # Dispatch incoming events using routing rules.
       for rule in self.__rules__:
         target = rule.get('target')
         header_name = rule.get('header_name')
@@ -314,6 +315,21 @@ class EventSocketDispatcher(ThreadingActor):
           self.__server__.tell({
             'body': RouteMessageCommand(message, target)
           })
+      # Dispatch incoming events using watches.
+      for watch in self.__watches__:
+        observer = watch.get('observer')
+        header_name = watch.get('header_name')
+        header_value = message.headers().get(header_name)
+        if header_value is None:
+          continue
+        target_pattern = watch.get('header_pattern')
+        if target_pattern is not None:
+          match = re.match(target_pattern, header_value)
+          if match is not None:
+            self.__observer__.tell({ 'body': message })
+        target_value = watch.get('header_value')
+        if target_value is not None and header_value == target_value:
+          self.__observer__.tell({ 'body': message })
 
   def __initialize__(self, message):
     if isinstance(message, EventSocketProxyInitEvent):
@@ -367,6 +383,27 @@ class EventSocketDispatcher(ThreadingActor):
 
   def __unlock__(self, message):
     self.__owner__ = None
+
+  def __unwatch__(self, message):
+    for idx in xrange(len(self.__watches__)):
+      watch = self.__watches__[idx]
+      if message.observer().actor_urn == \
+         watch.get('observer').actor_urn:
+        if message.header_name() == \
+           watch.get('header_name') and \
+           message.header_pattern() == \
+           watch.get('header_pattern') and \
+           message.header_value() == \
+           watch.get('header_value'):
+          del self.__watches__[idx]
+
+  def __watch__(self, message):
+    self.__watches__.append({
+      'header_name': message.header_name(),
+      'header_pattern': message.header_pattern(),
+      'header_value': message.header_value(),
+      'observer': message.observer()
+    })
 
   def on_receive(self, message):
     message = message.get('body')
@@ -437,3 +474,32 @@ class EventSocketLockCommand(object):
 class EventSocketUnlockCommand(object):
   def __init__(self, *args, **kwargs):
     super(EventSocketUnlockCommand, self).__init__(*args, **kwargs)
+
+class EventSocketWatchCommand(object):
+  def __init__(self, observer, header_name,
+               header_pattern = None,
+               header_value = None):
+    self.__header_name__ = header_name
+    self.__header_pattern__ = header_pattern
+    self.__header_value__ = header_value
+    self.__observer__ = observer
+
+  def header_name(self):
+    return self.__header_name__
+
+  def header_pattern(self):
+    return self.__header_pattern__
+
+  def header_value(self):
+    return self.__header_value__
+
+  def observer(self):
+    return self.__observer__
+
+class EventSocketUnwatchCommand(EventSocketWatchCommand):
+  def __init__(self, observer, header_name,
+               header_pattern = None,
+               header_value = None):
+    super(EventSocketUnwatchCommand, self).__init__(
+      observer, header_name, header_pattern, header_value
+    )
