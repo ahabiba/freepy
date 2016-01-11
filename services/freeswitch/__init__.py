@@ -294,7 +294,7 @@ class EventSocketDispatcher(ThreadingActor):
         uuid = message.headers().get('Job-UUID')
         observer = self.__observers__.get(uuid)
         if observer is not None and observer.is_alive():
-          observer.tell({ 'body', message })
+          observer.tell({ 'body': message })
         del self.__observers__[uuid]
       # Dispatch incoming events using routing rules.
       for rule in self.__rules__:
