@@ -45,7 +45,7 @@ class ActorRegistry(object):
       module = __import__(prefix, globals(), locals(), [klass], -1)
       return getattr(module, klass)
 
-  def exists(self, path, singleton = False):
+  def exists(self, path):
     return self.__klasses__.has_key(path) or \
            self.__singletons__.has_key(path)
 
@@ -65,17 +65,18 @@ class ActorRegistry(object):
       return None
 
   def register(self, path, singleton = False):
-    klass = self.__klass__(path)
-    if not singleton:
-      self.__klasses__.update({ path: klass })
-    else:
-      actor = klass.start()
-      if self.__create_msg__ is not None:
-        try:
-          actor.tell({ 'body': self.__create_msg__ })
-        except ActorDeadError as e:
-          pass
-      self.__singletons__.update({ path: actor })
+    if not self.exists(path):
+      klass = self.__klass__(path)
+      if not singleton:
+        self.__klasses__.update({ path: klass })
+      else:
+        actor = klass.start()
+        if self.__create_msg__ is not None:
+          try:
+            actor.tell({ 'body': self.__create_msg__ })
+          except ActorDeadError as e:
+            pass
+        self.__singletons__.update({ path: actor })
 
   def shutdown(self):
     paths = self.__singletons__.keys()
