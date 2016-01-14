@@ -278,9 +278,9 @@ class EventSocketDispatcher(ThreadingActor):
     if self.__owner__ is not None:
       try:
         self.__owner__.tell({ 'body': message })
+        return
       except ActorDeadError as e:
         self.__owner__ = None
-      return
     content_type = message.headers().get('Content-Type')
     if content_type == 'command/reply':
       # Dispatch command responses.
