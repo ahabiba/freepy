@@ -19,7 +19,7 @@
 
 from lib.server import RouteMessageCommand
 from llist import dllist
-from pykka import ThreadingActor
+from pykka import ActorDeadError, ThreadingActor
 from threading import Thread
 
 import logging, time
@@ -226,7 +226,10 @@ class TimerService(ThreadingActor):
     recurring = list()
     while len(timers) > 0:
       timer = timers.popleft()
-      timer.observer().tell({ 'body': self.__timeout__ })
+      try:
+        timer.observer().tell({ 'body': self.__timeout__ })
+      except ActorDeadError as e:
+        pass
       if timer.recurring():
         recurring.append(timer)
       else:

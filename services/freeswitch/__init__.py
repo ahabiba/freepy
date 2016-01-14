@@ -22,7 +22,7 @@ from lib.fsm import *
 from lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 from os import SEEK_END
-from pykka import ThreadingActor
+from pykka import ActorDeadError, ThreadingActor
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
@@ -276,15 +276,21 @@ class EventSocketDispatcher(ThreadingActor):
   def __dispatch_event__(self, message):
     # Handle locked dispatcher events.
     if self.__owner__ is not None:
-      self.__owner__.tell({ 'body': message })
+      try:
+        self.__owner__.tell({ 'body': message })
+      except ActorDeadError as e:
+        self.__owner__ = None
       return
     content_type = message.headers().get('Content-Type')
     if content_type == 'command/reply':
       # Dispatch command responses.
       uuid = message.headers().get('Job-UUID')
       observer = self.__transactions__.get(uuid)
-      if observer is not None and observer.is_alive():
-        observer.tell({ 'body': message })
+      if observer is not None:
+        try:
+          observer.tell({ 'body': message })
+        except ActorDeadError as e:
+          pass
       del self.__transactions__[uuid]
       return
     if content_type == 'text/event-plain':
@@ -293,8 +299,11 @@ class EventSocketDispatcher(ThreadingActor):
         # Dispatch background job responses.
         uuid = message.headers().get('Job-UUID')
         observer = self.__observers__.get(uuid)
-        if observer is not None and observer.is_alive():
-          observer.tell({ 'body': message })
+        if observer is not None:
+          try:
+            observer.tell({ 'body': message })
+          except ActorDeadError as e:
+            pass
         del self.__observers__[uuid]
       # Dispatch incoming events using routing rules.
       for rule in self.__rules__:
@@ -316,20 +325,31 @@ class EventSocketDispatcher(ThreadingActor):
             'body': RouteMessageCommand(message, target)
           })
       # Dispatch incoming events using watches.
-      for watch in self.__watches__:
-        observer = watch.observer()
-        header_name = watch.header_name()
+      dead = []
+      for idx in xrange(len(self.__watches__)):
+        observer = self.__watches__[idx].observer()
+        header_name = self.__watches__[idx].header_name()
         header_value = message.headers().get(header_name)
         if header_value is None:
           continue
-        target_pattern = watch.header_pattern()
+        target_pattern = self.__watches__[idx].header_pattern()
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
-            observer.tell({ 'body': message })
-        target_value = watch.header_value()
+            try:
+              observer.tell({ 'body': message })
+            except ActorDeadError as e:
+              dead.append(idx)
+        target_value = self.__watches__[idx].header_value()
         if target_value is not None and header_value == target_value:
-          observer.tell({ 'body': message })
+          try:
+            observer.tell({ 'body': message })
+          except ActorDeadError as e:
+            dead.append(idx)
+      if len(dead) > 0:
+        self.__logger__.info('Removing watches for dead observers.')
+      for idx in dead:
+        del self.__watches__[idx]
 
   def __initialize__(self, message):
     if isinstance(message, EventSocketProxyInitEvent):

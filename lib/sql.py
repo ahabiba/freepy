@@ -18,7 +18,7 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from lib.server import RouteMessageCommand, ServerInitEvent
-from pykka import ThreadingActor
+from pykka import ActorDeadError, ThreadingActor
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -35,15 +35,21 @@ class SQLAlchemyService(ThreadingActor):
 
   def __fetch_engine__(self, message):
     engine = self.__engines__.get(message.name())
-    message.observer().tell({
-      'body': FetchEngineResponse(engine)
-    })
+    try:
+      message.observer().tell({
+        'body': FetchEngineResponse(engine)
+      })
+    except ActorDeadError as e:
+      pass
 
   def __fetch_object_relational_mapper__(self, message):
     session_maker = self.__session_makers__.get(message.name())
-    message.observer().tell({
-      'body': FetchObjectRelationalMapperResponse(session_maker)
-    })
+    try:
+      message.observer().tell({
+        'body': FetchObjectRelationalMapperResponse(session_maker)
+      })
+    except ActorDeadError as e:
+      pass
 
   def __start__(self):
     try:

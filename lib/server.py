@@ -17,7 +17,7 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from pykka import ThreadingActor
+from pykka import ActorDeadError, ThreadingActor
 from threading import Thread
 from twisted.internet import reactor
 
@@ -54,7 +54,10 @@ class ActorRegistry(object):
       klass = self.__klasses__.get(path)
       actor = klass.start()
       if self.__create_msg__ is not None:
-        actor.tell({ 'body': self.__create_msg__ })
+        try:
+          actor.tell({ 'body': self.__create_msg__ })
+        except ActorDeadError as e:
+          pass
       return actor
     elif self.__singletons__.has_key(path):
       return self.__singletons__.get(path)
@@ -68,7 +71,10 @@ class ActorRegistry(object):
     else:
       actor = klass.start()
       if self.__create_msg__ is not None:
-        actor.tell({ 'body': self.__create_msg__ })
+        try:
+          actor.tell({ 'body': self.__create_msg__ })
+        except ActorDeadError as e:
+          pass
       self.__singletons__.update({ path: actor })
 
   def shutdown(self):
@@ -83,7 +89,10 @@ class ActorRegistry(object):
       actor = self.__singletons__.get(path)
       if actor.is_alive():
         if self.__destroy_msg__ is not None:
-          actor.tell({ 'body': self.__destroy_msg__ })
+          try:
+            actor.tell({ 'body': self.__destroy_msg__ })
+          except ActorDeadError as e:
+            pass
         actor.stop()
       del self.__singletons__[path]
 
@@ -164,8 +173,10 @@ class Server(ThreadingActor):
   def __broadcast__(self, fqn, message):
     recipients = self.__observers__.get(fqn)
     for recipient in recipients:
-      if recipient.is_alive():
+      try:
         recipient.tell({ 'body': message })
+      except ActorDeadError as e:
+        pass
 
   def __register__(self, message):
     self.__applications__.register(
@@ -202,8 +213,11 @@ class Server(ThreadingActor):
       recipient = self.__services__.get(target)
     elif self.__applications__.exists(target):
       recipient = self.__applications__.get(target)
-    if recipient is not None and recipient.is_alive():
-      recipient.tell({ 'body': message.message() })
+    if recipient is not None:
+      try:
+        recipient.tell({ 'body': message.message() })
+      except ActorDeadError as e:
+        pass
 
   def __unwatch__(self, message):
     fqn = self.__fqn__(message.message())
