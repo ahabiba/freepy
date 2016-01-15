@@ -325,31 +325,26 @@ class EventSocketDispatcher(ThreadingActor):
             'body': RouteMessageCommand(message, target)
           })
       # Dispatch incoming events using watches.
-      dead = []
-      for idx in xrange(len(self.__watches__)):
-        observer = self.__watches__[idx].observer()
-        header_name = self.__watches__[idx].header_name()
+      for watch in self.__watches__:
+        observer = watch.observer()
+        header_name = watch.header_name()
         header_value = message.headers().get(header_name)
         if header_value is None:
           continue
-        target_pattern = self.__watches__[idx].header_pattern()
+        target_pattern = watch.header_pattern()
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
             try:
               observer.tell({ 'body': message })
             except ActorDeadError as e:
-              dead.append(idx)
-        target_value = self.__watches__[idx].header_value()
+              pass
+        target_value = watch.header_value()
         if target_value is not None and header_value == target_value:
           try:
             observer.tell({ 'body': message })
           except ActorDeadError as e:
-            dead.append(idx)
-      if len(dead) > 0:
-        self.__logger__.info('Removing watches for dead observers.')
-      for idx in dead:
-        del self.__watches__[idx]
+            pass
 
   def __initialize__(self, message):
     if isinstance(message, EventSocketProxyInitEvent):
