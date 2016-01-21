@@ -29,7 +29,11 @@ class Monitor(ThreadingActor):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.Monitor')
-    self.__info__ = []
+    self.__info__ = [{
+      'Status': 'Waiting on Heartbeat',
+      'Idle-CPU': 100,
+      'Session-Count': 0
+    }]
 
   def on_receive(self, message):
     message = message.get('body')
@@ -39,7 +43,53 @@ class Monitor(ThreadingActor):
       request = message.request()
       if request.method == 'GET':
         request.setResponseCode(200)
-        request.write(json.dumps(self.__info__,
-                                 indent = 2,
-                                 sort_keys = True))
+        responseString = '''
+        <html>
+          <head>
+           <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+           <script type="text/javascript">
+              google.charts.load('current', {'packages':['gauge']});
+              google.charts.setOnLoadCallback(drawChart);
+              function drawChart() {
+
+                var data = google.visualization.arrayToDataTable([
+                  ['Label', 'Value'],
+                  ['CPU', %s],
+                ]);
+                var options = {
+                  width: 400, height: 120,
+                  redFrom: 90, redTo: 100,
+                  yellowFrom:75, yellowTo: 90,
+                  minorTicks: 5
+                };
+                var chart = new google.visualization.Gauge(document.getElementById('chart_div1'));
+                chart.draw(data, options);
+                var data = google.visualization.arrayToDataTable([
+                  ['Label', 'Value'],
+                  ['Sessions', %s],
+                ]);
+                var options = {
+                  width: 400, height: 120,
+                  redFrom: 90, redTo: 100,
+                  yellowFrom:75, yellowTo: 90,
+                  minorTicks: 5,
+                  max: 1000
+                };
+                var chart = new google.visualization.Gauge(document.getElementById('chart_div2'));
+                chart.draw(data, options);
+              }
+              setTimeout(function(){
+                location = ''
+              },15000)
+            </script>
+          </head>
+          <body>
+            <div id="chart_div1" style="float:left; width: 120px; height: 120px; margin-right: 20px;"></div>
+            <div id="chart_div2" style="float: left; width: 120px; height: 120px; margin-right: 20px;"></div>
+            <div style="clear: both;"></div>
+            <pre>%s</pre>
+          </body>
+        </html>
+        ''' % ((100-float(self.__info__[0]['Idle-CPU'])), self.__info__[0]['Session-Count'], json.dumps(self.__info__, indent = 2, sort_keys = True))
+        request.write(responseString)
         request.finish()
