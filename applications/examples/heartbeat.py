@@ -70,8 +70,8 @@ class Monitor(ThreadingActor):
                 ]);
                 var options = {
                   width: 400, height: 120,
-                  redFrom: 90, redTo: 100,
-                  yellowFrom:75, yellowTo: 90,
+                  redFrom: 900, redTo: 1000,
+                  yellowFrom:750, yellowTo: 900,
                   minorTicks: 5,
                   max: 1000
                 };
