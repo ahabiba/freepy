@@ -21,6 +21,7 @@ from lib.server import ServerInfoEvent
 from pykka import ThreadingActor
 from services.http import HttpRequestEvent
 from services.freeswitch import EventSocketEvent
+from utils import *
 
 import json
 import logging
@@ -32,7 +33,10 @@ class Monitor(ThreadingActor):
     self.__info__ = [{
       'Status': 'Waiting on Heartbeat',
       'Idle-CPU': 100,
-      'Session-Count': 0
+      'Session-Count': 0,
+      'Event-Date-Timestamp': '',
+      'Session-Peak-FiveMin': 0,
+      'Session-Peak-Max': 0
     }]
 
   def on_receive(self, message):
@@ -41,7 +45,37 @@ class Monitor(ThreadingActor):
       self.__info__ = [message.headers()]
     elif isinstance(message, HttpRequestEvent):
       request = message.request()
-      if request.method == 'GET':
+      if request.method == 'GET':        
+        # POST Data to Google Spreadsheet via Sheetsu.com
+        if request.args.get("sheetsu_url") and not self.__info__[0].get('Status') and not self.__info__[0].get("Saved"):
+          from twisted.web.client import Agent
+          from twisted.internet import reactor
+          from twisted.web.http_headers import Headers
+
+          data_to_post = {
+            "Timestamp": self.__info__[0]['Event-Date-Timestamp'],
+            "CPU Idle": self.__info__[0]['Idle-CPU'],
+            "Sessions": self.__info__[0]['Session-Count'],
+            "Sessions 5-Min": self.__info__[0]['Session-Peak-FiveMin'],
+            "Sessions Peak": self.__info__[0]['Session-Peak-Max'],
+          }
+
+          agent = Agent(reactor)
+          def callback(response):
+            if response.code == 201:
+              self.__logger__.info('Spreadsheet Data Saved to: %s' % (request.args.get("sheetsu_url")[0]))
+          def callback_error_handler(failure):
+            self.__logger__.warn(failure.getErrorMessage())          
+          
+          # Execute the request.
+          headers = {
+            "Content-type": ["application/json"],
+          }
+          deferred = agent.request('POST', request.args.get("sheetsu_url")[0], Headers(headers), StringProducer(json.dumps(data_to_post)))
+          deferred.addCallback(callback)
+          deferred.addErrback(callback_error_handler)
+          self.__info__[0]['Saved'] = True
+
         request.setResponseCode(200)
         responseString = '''
         <html>
@@ -79,7 +113,7 @@ class Monitor(ThreadingActor):
                 chart.draw(data, options);
               }
               setTimeout(function(){
-                location = ''
+                window.location.replace(window.location.href)
               },15000)
             </script>
           </head>
