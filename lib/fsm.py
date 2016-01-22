@@ -271,9 +271,15 @@ class FiniteStateMachine(object):
         from %s to %s.' % (self.__state__, to))
     # Try to execute the action associated with leaving the current state.
     if transition.get('beginning_state').has_key('on_exit'):
-      transition.get('beginning_state').get('on_exit')(event)
+      if event is not None:
+        transition.get('beginning_state').get('on_exit')(event)
+      else:
+        transition.get('beginning_state').get('on_exit')()
     # Try to execute the action associated with entering the new state.
     if transition.get('end_state').has_key('on_enter'):
-      transition.get('end_state').get('on_enter')(event)
+      if event is not None:
+        transition.get('end_state').get('on_enter')(event)
+      else:
+        transition.get('end_state').get('on_enter')()
     # Enter the new state and we're done.
     self.__state__ = to

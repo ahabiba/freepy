@@ -59,13 +59,13 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
     self.__start__()
 
   @Action(state = 'authenticating')
-  def __authenticate__(self, message):
+  def __authenticate__(self):
     self.__dispatcher__.tell({
       'body': AuthCommand(self.actor_ref, password = self.__password__)
     })
 
   @Action(state = 'bootstrapping')
-  def __bootstrap__(self, message):
+  def __bootstrap__(self):
     unsorted = self.__events__
     sorted = ['BACKGROUND_JOB']
     for event in unsorted:
@@ -81,7 +81,7 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
     })
 
   @Action(state = 'done')
-  def __finish__(self, message):
+  def __finish__(self):
     self.__dispatcher__.tell({
       'body': EventSocketUnlockCommand()
     })
@@ -97,17 +97,17 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
     if isinstance(message, EventSocketEvent):
       content_type = message.headers().get('Content-Type')
       if content_type == 'auth/request':
-        self.transition(to = 'authenticating', event = message)
+        self.transition(to = 'authenticating')
       elif content_type == 'command/reply':
         reply = message.headers().get('Reply-Text')
         if reply == '+OK accepted':
-          self.transition(to = 'bootstrapping', event = message)
+          self.transition(to = 'bootstrapping')
         elif reply == '-ERR invalid':
-          self.transition(to = 'failed', event = message)
+          self.transition(to = 'failed')
         elif reply == '+OK event listener enabled plain':
           self.transition(to = 'done')
         elif reply == '-ERR no keywords supplied':
-          self.transition(to = 'failed', event = message)
+          self.transition(to = 'failed')
 
 class EventSocketClient(Protocol):
   def __init__(self, observer):

@@ -24,7 +24,12 @@ databases = [
   {
     'name': 'telerest',
     'url': 'postgresql://bettervoice:bettervoice@127.0.0.1:5432/telerest',
-    'orm': True
+    'orm': True,
+    'connections': {
+      'max_overflow': 10,
+      'pool_size': 5,
+      'timeout': 30
+    }
   }
 ]
 
@@ -162,3 +167,17 @@ services = [
     'target': 'services.http.HttpDispatcher'
   }
 ]
+
+# The Redis cache service configuration.
+redis = {
+  'connections': {
+    'pool_size': 10
+  }
+}
+
+# The twisted framework configuration.
+twisted = {
+  'threads': {
+    'pool_size': 8
+  }
+}

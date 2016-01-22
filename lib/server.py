@@ -206,6 +206,13 @@ class Server(ThreadingActor):
           self.__logger__.error('There was an error loading %s' % name)
         self.__logger__.exception(e)
     self.__reactor__.start()
+    # Configure the reactor.
+    thread_settings = settings.twisted.get('threads')
+    if thread_settings is not None:
+      pool_size = thread_settings.get('pool_size', 8)
+    else:
+      pool_size = 8
+    reactor.suggestThreadPoolSize(pool_size)
 
   def __unicast__(self, message):
     recipient = None
