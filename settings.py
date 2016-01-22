@@ -26,8 +26,8 @@ databases = [
     'url': 'postgresql://bettervoice:bettervoice@127.0.0.1:5432/telerest',
     'orm': True,
     'connections': {
-      'max_overflow': 10,
-      'pool_size': 5,
+      'max_overflow': -1,
+      'pool_size': 25,
       'timeout': 30
     }
   }
@@ -57,7 +57,7 @@ http = {
 #   DEBUG
 #   NOTSET
 logging = {
-  'level': DEBUG,
+  'level': INFO,
   'format': '%(asctime)s %(levelname)s - %(name)s - %(message)s',
   'filename': None # '/var/log/freepy/freepy.log'
 }

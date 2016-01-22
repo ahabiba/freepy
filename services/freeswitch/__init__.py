@@ -179,10 +179,13 @@ class EventSocketClient(Protocol):
       else:
         tokens = line.split(':', 1)
         name = tokens[0].strip()
-        value = tokens[1].strip()
-        if value and not len(value) == 0:
-          value = urllib.unquote(value)
-        headers.update({name: value})
+        if len(tokens) == 2:
+          value = tokens[1].strip()
+          if value and not len(value) == 0:
+            value = urllib.unquote(value)
+          headers.update({name: value})
+        else:
+          headers.update({name: None})
     return headers
 
   def __parse_line__(self, stride = 64):
@@ -291,7 +294,8 @@ class EventSocketDispatcher(ThreadingActor):
           observer.tell({ 'body': message })
         except ActorDeadError as e:
           pass
-      del self.__transactions__[uuid]
+      if self.__transactions__.has_key(uuid):
+        del self.__transactions__[uuid]
       return
     if content_type == 'text/event-plain':
       event_name = message.headers().get('Event-Name')
@@ -304,7 +308,8 @@ class EventSocketDispatcher(ThreadingActor):
             observer.tell({ 'body': message })
           except ActorDeadError as e:
             pass
-        del self.__observers__[uuid]
+        if self.__observers__.has_key(uuid):
+          del self.__observers__[uuid]
       # Dispatch incoming events using routing rules.
       for rule in self.__rules__:
         target = rule.get('target')
