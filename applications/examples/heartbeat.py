@@ -16,6 +16,8 @@
 # under the License.
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
+#
+# Lyle Pratt <lylepratt@gmail.com>
 
 from lib.server import ServerInfoEvent
 from pykka import ThreadingActor
