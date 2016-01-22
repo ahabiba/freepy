@@ -55,7 +55,21 @@ class SQLAlchemyService(ThreadingActor):
     try:
       for database in settings.databases:
         if database.has_key('name') and database.has_key('url'):
-          engine = create_engine(database.get('url'))
+          connections = database.get('connections')
+          if connections is not None:
+            max_overflow = connections.get('max_overflow', 10)
+            pool_size = connections.get('pool_size', 5)
+            timeout = connections.get('timeout', 30)
+          else:
+            max_overflow = 10
+            pool_size = 20
+            timeout = 30
+          engine = create_engine(
+            database.get('url'),
+            max_overflow = max_overflow, 
+            pool_size = pool_size,
+            pool_timeout = timeout
+          )
           self.__engines__.update({
             database.get('name'): engine
           })
