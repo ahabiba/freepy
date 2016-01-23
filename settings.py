@@ -178,6 +178,6 @@ redis = {
 # The twisted framework configuration.
 twisted = {
   'threads': {
-    'pool_size': 8
+    'pool_size': 16
   }
 }
