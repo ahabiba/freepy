@@ -57,7 +57,7 @@ http = {
 #   DEBUG
 #   NOTSET
 logging = {
-  'level': INFO,
+  'level': DEBUG,
   'format': '%(asctime)s %(levelname)s - %(name)s - %(message)s',
   'filename': None # '/var/log/freepy/freepy.log'
 }
