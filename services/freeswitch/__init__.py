@@ -69,7 +69,7 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
     unsorted = self.__events__
     sorted = ['BACKGROUND_JOB']
     for event in unsorted:
-      if event is not 'CUSTOM' and event.find('::') == -1:
+      if not event == 'CUSTOM' and event.find('::') == -1:
         sorted.append(event)
     if 'CUSTOM' in unsorted:
       sorted.append('CUSTOM')
