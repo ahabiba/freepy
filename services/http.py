@@ -25,6 +25,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET, Request, Site
 
 import logging
+import pprint
 import re
 import settings
 
@@ -106,9 +107,23 @@ class HttpProxy(Resource):
   isLeaf = True
 
   def __init__(self, dispatcher):
+    self.__logger__ = logging.getLogger('services.http.HttpDispatcher')
     self.__dispatcher__ = dispatcher
 
   def render(self, request):
+    if self.__logger__.isEnabledFor(logging.DEBUG):
+      message = 'Incoming HTTP Request\n'
+      message += 'uri: %s%s\n' % (request.uri, request.path)
+      message += 'method: %s\n' % request.method
+      if len(request.args) > 0:
+        message += 'args:\n'
+        for key, value in request.args.iteritems():
+          message += '  %s: %s\n' % (key, value)
+      message += 'headers:\n'
+      for header in request.requestHeaders.getAllRawHeaders():
+        message += '  %s: %s\n' % (header[0], header[1])
+      message += '\n'
+      self.__logger__.debug(message)
     self.__dispatcher__.tell({ 'body': request })
     return NOT_DONE_YET
 

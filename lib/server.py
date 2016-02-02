@@ -314,7 +314,7 @@ class ServerDestroyEvent(object):
     super(ServerDestroyEvent, self).__init__(*args, **kwargs)
 
 class WatchMessagesCommand(object):
-  def __init__(self, message, observer):
+  def __init__(self, observer, message):
     self.__message__ = message
     self.__observer__ = observer
 
@@ -325,7 +325,7 @@ class WatchMessagesCommand(object):
     return self.__observer__
 
 class UnwatchMessagesCommand(object):
-  def __init__(self, message, observer):
+  def __init__(self, observer, message):
     self.__message__ = message
     self.__observer__ = observer
 
