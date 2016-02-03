@@ -109,7 +109,7 @@ class MessageRouter(object):
     self.queue.put(message)
 
   def start(self):
-    self.worker = MessageRouterWorker(self.queue)
+    self.worker = MessageRouterWorker(self.logger, self.queue)
     self.worker.start()
 
   def stop(self):
@@ -119,8 +119,8 @@ class MessageRouter(object):
 class MessageRouterWorker(Thread):
   def __init__(self, *args, **kwargs):
     super(MessageRouterWorker, self).__init__()
-    self.logger = logging.getLogger('lib.application.MessageRouterWorker')
-    self.queue = args[0]
+    self.logger = args[0]
+    self.queue = args[1]
 
   def run(self):
     while True:
