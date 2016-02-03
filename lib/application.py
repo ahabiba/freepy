@@ -17,7 +17,6 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from multiprocessing import cpu_count
 from Queue import Queue
 from threading import Thread
 
