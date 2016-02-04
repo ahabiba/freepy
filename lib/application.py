@@ -19,43 +19,58 @@
 
 from Queue import Queue
 from threading import Thread
+from uuid import uuid4
 
 import logging
 import sys
 
+class Actor(object):
+  def __init__(self, *args, **kwargs):
+    super(Actor, self).__init__()
+    self.__router__ = kwargs.get('router')
+    self.__uuid__ = uuid4().get_urn()
+
+  def receive(self, message):
+    pass
+
+  def tell(self, message):
+    self.__router__.send((self, message))
+
+  def uuid(self):
+    return self.__uuid__
+
 class ActorRegistry(object):
   def __init__(self, *args, **kwargs):
     super(ActorRegistry, self).__init__()
-    self.logger = logging.getLogger('lib.application.ActorRegistry')
-    self.classes = dict()
-    self.message = kwargs.get('message')
-    self.objects = dict()
-    self.router = MessageRouter()
-    self.router.start()
+    self.__logger__ = logging.getLogger('lib.application.ActorRegistry')
+    self.__classes__ = dict()
+    self.__message__ = kwargs.get('message')
+    self.__objects__ = dict()
+    self.__router__ = kwargs.get('router')
 
-  def exists(self, fqdn):
-    return self.classes.has_key(fqdn) or self.objects.has_key(fqdn)
+  def exists(self, fqn):
+    return self.__classes__.has_key(fqn) or self.__objects__.has_key(fqn)
 
-  def get(self, fqdn):
+  def get(self, fqn):
     actor = None
-    if self.classes.has_key(fqdn):
-      klass = self.classes.get(fqdn)
-      actor = klass(router = self.router)
-      if self.logger.isEnabledFor(logging.DEBUG):
-        self.logger.warning('Started %s' % fqdn)
-      if not self.message == None:
+    if self.__classes__.has_key(fqn):
+      klass = self.__classes__.get(fqn)
+      actor = klass(router = self.__router__)
+      if self.__logger__.isEnabledFor(logging.DEBUG):
+        self.__logger__.info('Started %s' % fqn)
+      if not self.__message__ == None:
         try:
-          actor.tell(self.message)
+          actor.tell(self.__message__)
         except Exception as e:
-          self.logger.exception(e)
-    elif self.objects.has_key(fqdn):
-      actor = self.objects.get(fqdn)
+          self.__logger__.exception(e)
+    elif self.__objects__.has_key(fqn):
+      actor = self.__objects__.get(fqn)
     return actor
 
-  def klass(self, fqdn):
-    delimiter = fqdn.rfind('.')
-    root = fqdn[:delimiter]
-    name = fqdn[delimiter + 1:]
+  def klass(self, fqn):
+    delimiter = fqn.rfind('.')
+    root = fqn[:delimiter]
+    name = fqn[delimiter + 1:]
     module = sys.modules.get(root)
     try:
       if not module == None:
@@ -63,72 +78,61 @@ class ActorRegistry(object):
       else:
         module = __import__(root, globals(), locals(), [name], -1)
     except Exception as e:
-      self.logger.exception(e)
+      self.__logger__.exception(e)
     return getattr(module, name)
 
-  def register(self, fqdn, singleton = False):
-    if self.classes.has_key(fqdn):
-      del self.classes[fqdn]
-    elif self.objects.has_key(fqdn):
-      del self.objects[fqdn]
-    klass = self.klass(fqdn)
+  def register(self, fqn, singleton = False):
+    if self.__classes__.has_key(fqn):
+      del self.__classes__[fqn]
+    elif self.__objects__.has_key(fqn):
+      del self.__objects__[fqn]
+    klass = self.klass(fqn)
     if not singleton:
-      self.classes.update({fqdn: klass})
+      self.__classes__.update({fqn: klass})
     else:
-      actor = klass(router = self.router)
-      if self.logger.isEnabledFor(logging.DEBUG):
-        self.logger.warning('Started %s' % fqdn)
-      self.objects.update({fqdn: actor})
-      if not self.message == None:
+      actor = klass(router = self.__router__)
+      if self.__logger__.isEnabledFor(logging.DEBUG):
+        self.__logger__.info('Started %s' % fqn)
+      self.__objects__.update({fqn: actor})
+      if not self.__message__ == None:
         try:
-          actor.tell(self.message)
+          actor.tell(self.__message__)
         except Exception as e:
-          self.logger.exception(e)
+          self.__logger__.exception(e)
 
   def shutdown(self):
-    self.router.stop()
-
-class Actor(object):
-  def __init__(self, *args, **kwargs):
-    super(Actor, self).__init__()
-    self.router = kwargs.get('router')
-
-  def receive(self, message):
-    pass
-
-  def tell(self, message):
-    self.router.send((self, message))
+    self.__router__.stop()
 
 class MessageRouter(object):
   def __init__(self, *args, **kwargs):
     super(MessageRouter, self).__init__()
-    self.logger = logging.getLogger('lib.application.MessageRouter')
-    self.queue = Queue()
+    self.__logger__ = logging.getLogger('lib.application.MessageRouter')
+    self.__queue__ = Queue()
 
   def send(self, message):
-    self.queue.put(message)
+    self.__queue__.put(message)
 
   def start(self):
-    self.worker = MessageRouterWorker(self.logger, self.queue)
+    self.worker = MessageRouterWorker(self.__logger__, self.__queue__)
     self.worker.start()
 
   def stop(self):
-    self.queue.put((None, None))
+    self.__queue__.put((None, None))
     self.worker = None
 
 class MessageRouterWorker(Thread):
   def __init__(self, *args, **kwargs):
     super(MessageRouterWorker, self).__init__()
-    self.logger = args[0]
-    self.queue = args[1]
+    self.__logger__ = args[0]
+    self.__queue__ = args[1]
 
   def run(self):
     while True:
-      recipient, message = self.queue.get(True)
+      recipient, message = self.__queue__.get(True)
       if recipient == None and message == None:
         break
       try:
         recipient.receive(message)
       except Exception as e:
-        if self.logger.isEnabledFor(logging.DEBUG):
-          self.logger.exception(e)
+        if self.__logger__.isEnabledFor(logging.DEBUG):
+          self.__logger__.exception(e)

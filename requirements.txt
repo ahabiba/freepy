@@ -4,5 +4,6 @@ psycopg2==2.6.1
 pykka==1.2.1
 pyopenssl==0.15.1
 redis==2.10.5
+service_identity==14.0.0
 sqlalchemy==1.0.10
 twisted==15.5.0

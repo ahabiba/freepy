@@ -17,9 +17,9 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.server import RouteMessageCommand
+from application import Actor
+from server import RouteMessageCommand
 from llist import dllist
-from pykka import ActorDeadError, ThreadingActor
 from threading import Thread
 
 import logging, time
@@ -65,14 +65,14 @@ class MonotonicClock(Thread):
     while self.__running__:
       time.sleep(self.__interval__)
       if self.__running__:
-        self.__actor__.tell({'body': self.__event__})
+        self.__actor__.tell(self.__event__)
       else:
         break
 
   def stop(self):
     self.__running__ = False
 
-class TimerService(ThreadingActor):
+class TimerService(Actor):
   '''
   The timer service uses the timing wheel algorithm borrowing from the
   approach used in the Linux kernel. Please refer to the email thread
@@ -226,10 +226,7 @@ class TimerService(ThreadingActor):
     recurring = list()
     while len(timers) > 0:
       timer = timers.popleft()
-      try:
-        timer.observer().tell({ 'body': self.__timeout__ })
-      except ActorDeadError as e:
-        pass
+      timer.observer().tell(self.__timeout__)
       if timer.recurring():
         recurring.append(timer)
       else:
@@ -319,13 +316,12 @@ class TimerService(ThreadingActor):
     '''
     self.__logger__.error(exception_value)
 
-  def on_receive(self, message):
+  def receive(self, message):
     '''
     Handles incoming messages.
 
     Arguments: message - The message to be processed.
     '''
-    message = message.get('body')
     if isinstance(message, ReceiveTimeoutCommand):
       uuid = message.get_sender().actor_urn
       if not self.__actor_lookup_table__.has_key(uuid):

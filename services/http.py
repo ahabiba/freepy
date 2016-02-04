@@ -17,7 +17,7 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from pykka import ThreadingActor
+from lib.application import Actor
 from lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 from twisted.internet import reactor
@@ -28,7 +28,7 @@ import logging
 import re
 import settings
 
-class HttpDispatcher(ThreadingActor):
+class HttpDispatcher(Actor):
   def __init__(self, *args, **kwargs):
     super(HttpDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('services.http.HttpDispatcher')
@@ -43,9 +43,7 @@ class HttpDispatcher(ThreadingActor):
           event = HttpRequestEvent(result.groups(),
                                    result.groupdict(),
                                    message)
-          self.__server__.tell({
-            'body': RouteMessageCommand(event, target)
-          })
+          self.__server__.tell(RouteMessageCommand(event, target))
           return
     self.__dispatch_not_found__(message)
 
@@ -77,9 +75,7 @@ class HttpDispatcher(ThreadingActor):
                 self.__rules__.append(rule)
                 singleton = rule.get('singleton')
                 target = rule.get('target')
-                self.__server__.tell({
-                  'body': RegisterActorCommand(target, singleton)
-                })
+                self.__server__.tell(RegisterActorCommand(target, singleton))
                 self.__logger__.info('Registered %s' % target)
           except Exception as e:
             name = item.get('name')
@@ -89,14 +85,13 @@ class HttpDispatcher(ThreadingActor):
     self.__start__()
 
   def __start__(self):
-    proxy = HttpProxy(self.actor_ref)
+    proxy = HttpProxy(self)
     reactor.listenTCP(
       settings.http.get('port'),
       Site(proxy)
     )
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def receive(self, message):
     if isinstance(message, Request):
       self.__dispatch__(message)
     elif isinstance(message, ServerInitEvent):
@@ -123,7 +118,7 @@ class HttpProxy(Resource):
         message += '  %s: %s\n' % (header[0], header[1])
       message += '\n'
       self.__logger__.debug(message)
-    self.__dispatcher__.tell({ 'body': request })
+    self.__dispatcher__.tell(request)
     return NOT_DONE_YET
 
 class HttpRequestEvent(object):

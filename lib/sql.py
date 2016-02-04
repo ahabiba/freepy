@@ -17,15 +17,15 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.server import RouteMessageCommand, ServerInitEvent
-from pykka import ActorDeadError, ThreadingActor
+from application import Actor
+from server import RouteMessageCommand, ServerInitEvent
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import logging
 import settings
 
-class SQLAlchemyService(ThreadingActor):
+class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):
     super(SQLAlchemyService, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.sql.SQLAlchemyService')
@@ -34,22 +34,17 @@ class SQLAlchemyService(ThreadingActor):
     self.__start__()
 
   def __fetch_engine__(self, message):
-    engine = self.__engines__.get(message.name())
-    try:
-      message.observer().tell({
-        'body': FetchEngineResponse(engine)
-      })
-    except ActorDeadError as e:
-      pass
+    message.observer().tell(FetchEngineResponse(
+      self.__engines__.get(message.name())
+      )
+    )
 
   def __fetch_object_relational_mapper__(self, message):
-    session_maker = self.__session_makers__.get(message.name())
-    try:
-      message.observer().tell({
-        'body': FetchObjectRelationalMapperResponse(session_maker)
-      })
-    except ActorDeadError as e:
-      pass
+    message.observer().tell(
+      FetchObjectRelationalMapperResponse(
+        self.__session_makers__.get(message.name())
+      )
+    )
 
   def __start__(self):
     try:
@@ -88,18 +83,17 @@ class SQLAlchemyService(ThreadingActor):
       )
       self.__logger__.exception(e)
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def __stop__(self):
+    for name, engine in self.__engines__.iteritems():
+      engine.dispose()
+
+  def receive(self, message):
     if isinstance(message, FetchEngineRequest):
       self.__fetch_engine__(message)
     elif isinstance(message, FetchObjectRelationalMapperRequest):
       self.__fetch_object_relational_mapper__(message)
     elif isinstance(message, ServerInitEvent):
       self.__server__ = message.server()
-
-  def on_stop(self):
-    for name, engine in self.__engines__.iteritems():
-      engine.dispose()
 
 class FetchEngineRequest(object):
   def __init__(self, name, observer):

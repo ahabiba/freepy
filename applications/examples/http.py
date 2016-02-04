@@ -17,15 +17,14 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from pykka import ThreadingActor
+from lib.application import Actor
 from services.http import HttpRequestEvent
 
-class HelloWorld(ThreadingActor):
+class HelloWorld(Actor):
   def __init__(self, *args, **kwargs):
     super(HelloWorld, self).__init__(*args, **kwargs)
 
   def on_receive(self, message):
-    message = message.get('body')
     if isinstance(message, HttpRequestEvent):
       request = message.request()
       if request.method == 'GET':

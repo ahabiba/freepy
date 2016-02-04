@@ -18,11 +18,11 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from commands import *
+from lib.application import Actor
 from lib.fsm import *
 from lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 from os import SEEK_END
-from pykka import ActorDeadError, ThreadingActor
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
@@ -37,7 +37,7 @@ import re
 import settings
 import urllib
 
-class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
+class EventSocketBootstrapper(FiniteStateMachine, Actor):
   initial_state = 'idle'
 
   transitions = [
@@ -60,9 +60,7 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
 
   @Action(state = 'authenticating')
   def __authenticate__(self):
-    self.__dispatcher__.tell({
-      'body': AuthCommand(self.actor_ref, password = self.__password__)
-    })
+    self.__dispatcher__.tell(AuthCommand(self, password = self.__password__))
 
   @Action(state = 'bootstrapping')
   def __bootstrap__(self):
@@ -76,24 +74,16 @@ class EventSocketBootstrapper(FiniteStateMachine, ThreadingActor):
     for event in unsorted:
       if event.find('::') > -1:
         sorted.append(event)
-    self.__dispatcher__.tell({
-      'body': EventsCommand(self.actor_ref, events = sorted)
-    })
+    self.__dispatcher__.tell(EventsCommand(self, events = sorted))
 
   @Action(state = 'done')
   def __finish__(self):
-    self.__dispatcher__.tell({
-      'body': EventSocketUnlockCommand()
-    })
-    self.stop()
+    self.__dispatcher__.tell(EventSocketUnlockCommand())
 
   def __start__(self):
-    self.__dispatcher__.tell({
-      'body': EventSocketLockCommand(self.actor_ref)
-    })
+    self.__dispatcher__.tell(EventSocketLockCommand(self))
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def receive(self, message):
     if isinstance(message, EventSocketEvent):
       content_type = message.headers().get('Content-Type')
       if content_type == 'auth/request':
@@ -257,7 +247,7 @@ class EventSocketClientFactory(ReconnectingClientFactory):
     self.resetDelay()
     return EventSocketClient(self.__observer__)
 
-class EventSocketDispatcher(ThreadingActor):
+class EventSocketDispatcher(Actor):
   def __init__(self, *args, **kwargs):
     super(EventSocketDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger(
@@ -279,21 +269,14 @@ class EventSocketDispatcher(ThreadingActor):
   def __dispatch_event__(self, message):
     # Handle locked dispatcher events.
     if self.__owner__ is not None:
-      try:
-        self.__owner__.tell({ 'body': message })
-        return
-      except ActorDeadError as e:
-        self.__owner__ = None
+      self.__owner__.tell(message)
     content_type = message.headers().get('Content-Type')
     if content_type == 'command/reply':
       # Dispatch command responses.
       uuid = message.headers().get('Job-UUID')
       observer = self.__transactions__.get(uuid)
       if observer is not None:
-        try:
-          observer.tell({ 'body': message })
-        except ActorDeadError as e:
-          pass
+        observer.tell(message)
       if self.__transactions__.has_key(uuid):
         del self.__transactions__[uuid]
       return
@@ -304,10 +287,7 @@ class EventSocketDispatcher(ThreadingActor):
         uuid = message.headers().get('Job-UUID')
         observer = self.__observers__.get(uuid)
         if observer is not None:
-          try:
-            observer.tell({ 'body': message })
-          except ActorDeadError as e:
-            pass
+          observer.tell(message)
         if self.__observers__.has_key(uuid):
           del self.__observers__[uuid]
       # Dispatch incoming events using routing rules.
@@ -321,14 +301,10 @@ class EventSocketDispatcher(ThreadingActor):
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
-            self.__server__.tell({
-              'body': RouteMessageCommand(message, target)
-            })
+            self.__server__.tell(RouteMessageCommand(message, target))
         target_value = rule.get('header_value')
         if target_value is not None and header_value == target_value:
-          self.__server__.tell({
-            'body': RouteMessageCommand(message, target)
-          })
+          self.__server__.tell(RouteMessageCommand(message, target))
       # Dispatch incoming events using watches.
       for watch in self.__watches__:
         observer = watch.observer()
@@ -340,16 +316,10 @@ class EventSocketDispatcher(ThreadingActor):
         if target_pattern is not None:
           match = re.match(target_pattern, header_value)
           if match is not None:
-            try:
-              observer.tell({ 'body': message })
-            except ActorDeadError as e:
-              pass
+            observer.tell(message)
         target_value = watch.header_value()
         if target_value is not None and header_value == target_value:
-          try:
-            observer.tell({ 'body': message })
-          except ActorDeadError as e:
-            pass
+          observer.tell(message)
 
   def __initialize__(self, message):
     if isinstance(message, EventSocketProxyInitEvent):
@@ -376,9 +346,7 @@ class EventSocketDispatcher(ThreadingActor):
                   self.__rules__.append(rule)
                   singleton = rule.get('singleton')
                   target = rule.get('target')
-                  self.__server__.tell({
-                    'body': RegisterActorCommand(target, singleton)
-                  })
+                  self.__server__.tell(RegisterActorCommand(target, singleton))
                   self.__logger__.info('Registered %s' % target)
             except Exception as e:
               name = item.get('name')
@@ -393,8 +361,12 @@ class EventSocketDispatcher(ThreadingActor):
 
   def __start__(self):
     bootstrapper = EventSocketBootstrapper
-    bootstrapper.start(dispatcher = self.actor_ref, events = self.__events__)
-    proxy = EventSocketProxy(self.actor_ref)
+    bootstrapper(
+      dispatcher = self,
+      events = self.__events__,
+      router = self.__router__
+    )
+    proxy = EventSocketProxy(self)
     reactor.connectTCP(
       settings.freeswitch.get('address'),
       settings.freeswitch.get('port'),
@@ -417,8 +389,7 @@ class EventSocketDispatcher(ThreadingActor):
   def __watch__(self, message):
     self.__watches__.append(message)
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def receive(self, message):
     if isinstance(message, EventSocketCommand):
       self.__dispatch_command__(message)
     elif isinstance(message, EventSocketEvent):
@@ -441,12 +412,10 @@ class EventSocketProxy(object):
     self.__dispatcher__ = dispatcher
 
   def consume(self, event):
-    self.__dispatcher__.tell({ 'body': event })
+    self.__dispatcher__.tell(event)
 
   def start(self, client):
-    self.__dispatcher__.tell({
-      'body': EventSocketProxyInitEvent(client)
-    })
+    self.__dispatcher__.tell(EventSocketProxyInitEvent(client))
 
 class EventSocketEvent(object):
   def __init__(self, headers, body = None):

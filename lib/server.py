@@ -17,7 +17,7 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from pykka import ActorDeadError, ThreadingActor
+from application import *
 from threading import Thread
 from twisted.internet import reactor
 
@@ -29,85 +29,22 @@ import pykka
 import signal
 import sys
 
-class ActorRegistry(object):
-  def __init__(self, create_msg = None, destroy_msg = None):
-    self.__create_msg__ = create_msg
-    self.__destroy_msg__ = destroy_msg
-    self.__klasses__ = dict()
-    self.__singletons__ = dict()
-
-  def __klass__(self, path):
-    module = sys.modules.get(path)
-    if not module:
-      offset = path.rfind('.')
-      prefix = path[:offset]
-      klass = path[offset + 1:]
-      module = __import__(prefix, globals(), locals(), [klass], -1)
-      return getattr(module, klass)
-
-  def exists(self, path):
-    return self.__klasses__.has_key(path) or \
-           self.__singletons__.has_key(path)
-
-  def get(self, path):
-    if self.__klasses__.has_key(path):
-      klass = self.__klasses__.get(path)
-      actor = klass.start()
-      if self.__create_msg__ is not None:
-        try:
-          actor.tell({ 'body': self.__create_msg__ })
-        except ActorDeadError as e:
-          pass
-      return actor
-    elif self.__singletons__.has_key(path):
-      return self.__singletons__.get(path)
-    else:
-      return None
-
-  def register(self, path, singleton = False):
-    if not self.exists(path):
-      klass = self.__klass__(path)
-      if not singleton:
-        self.__klasses__.update({ path: klass })
-      else:
-        actor = klass.start()
-        if self.__create_msg__ is not None:
-          try:
-            actor.tell({ 'body': self.__create_msg__ })
-          except ActorDeadError as e:
-            pass
-        self.__singletons__.update({ path: actor })
-
-  def shutdown(self):
-    paths = self.__singletons__.keys()
-    for path in paths:
-      self.unregister(path)
-
-  def unregister(self, path):
-    if self.__klasses__.has_key(path):
-      del self.__klasses__[path]
-    elif self.__singletons__.has_key(path):
-      actor = self.__singletons__.get(path)
-      if actor.is_alive():
-        if self.__destroy_msg__ is not None:
-          try:
-            actor.tell({ 'body': self.__destroy_msg__ })
-          except ActorDeadError as e:
-            pass
-        actor.stop()
-      del self.__singletons__[path]
-
 class Bootstrap(object):
   def __init__(self, *args, **kwargs):
     self.__logger__ = logging.getLogger('lib.server.Bootstrap')
-    self.__cwd__ = os.path.dirname(os.path.realpath(__file__))
-    self.__cwd__ = os.path.dirname(self.__cwd__)
 
-  def __create_server__(self, meta):
-    return Server.start(meta = meta)
+  def __create_router__(self):
+    router = MessageRouter()
+    router.start()
+    return router
+
+  def __create_server__(self, meta, router):
+    return Server(meta = meta, router = router)
 
   def __load_meta__(self):
-    apps = os.path.join(self.__cwd__, 'applications')
+    cwd = os.path.dirname(os.path.realpath(__file__))
+    cwd = os.path.dirname(cwd)
+    apps = os.path.join(cwd, 'applications')
     meta = []
     for item in os.listdir(apps):
       path = os.path.join(apps, item)
@@ -135,31 +72,30 @@ class Bootstrap(object):
       level = settings.logging.get('level')
     )
     meta = self.__load_meta__()
-    server = self.__create_server__(meta)
-    server.tell({
-      'body': BootstrapCompleteEvent()
-    })
+    router = self.__create_router__()
+    server = self.__create_server__(meta, router)
+    server.tell(BootstrapCompleteEvent())
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
       self.__logger__.critical('FreePy is now shutting down!!!')
-      pykka.registry.ActorRegistry.stop_all()
+      reactor.stop()
+      router.stop()
     signal.signal(signal.SIGINT, signal_handler)
     signal.pause()
 
-class Server(ThreadingActor):
+class Server(Actor):
   def __init__(self, *args, **kwargs):
     super(Server, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.server.Server')
     self.__applications__ = ActorRegistry(
-      create_msg = ServerInfoEvent(self.actor_ref),
-      destroy_msg = ServerDestroyEvent()
+      message = ServerInfoEvent(self),
+      router = kwargs.get('router')
     )
-    self.__meta__ = kwargs.get('meta')
     self.__observers__ = {}
     self.__reactor__ = Thread(target = reactor.run, args = (False,))
     self.__services__ = ActorRegistry(
-      create_msg = ServerInitEvent(self.actor_ref, self.__meta__),
-      destroy_msg = ServerDestroyEvent()
+      message = ServerInitEvent(self, kwargs.get('meta')),
+      router = kwargs.get('router')
     )
 
   def __fqn__(self, obj):
@@ -174,10 +110,7 @@ class Server(ThreadingActor):
   def __broadcast__(self, fqn, message):
     recipients = self.__observers__.get(fqn)
     for recipient in recipients:
-      try:
-        recipient.tell({ 'body': message })
-      except ActorDeadError as e:
-        pass
+      recipient.tell(message)
 
   def __register__(self, message):
     self.__applications__.register(
@@ -206,13 +139,6 @@ class Server(ThreadingActor):
           self.__logger__.error('There was an error loading %s' % name)
         self.__logger__.exception(e)
     self.__reactor__.start()
-    # Configure the reactor.
-    thread_settings = settings.twisted.get('threads')
-    if thread_settings is not None:
-      pool_size = thread_settings.get('pool_size', 8)
-    else:
-      pool_size = 8
-    reactor.suggestThreadPoolSize(pool_size)
 
   def __unicast__(self, message):
     recipient = None
@@ -222,10 +148,7 @@ class Server(ThreadingActor):
     elif self.__applications__.exists(target):
       recipient = self.__applications__.get(target)
     if recipient is not None:
-      try:
-        recipient.tell({ 'body': message.message() })
-      except ActorDeadError as e:
-        pass
+      recipient.tell(message.message())
 
   def __unwatch__(self, message):
     fqn = self.__fqn__(message.message())
@@ -233,7 +156,7 @@ class Server(ThreadingActor):
     if self.__observers__.has_key(fqn):
       recipients = self.__observers__.get(fqn)
       for idx in xrange(len(recipients)):
-        if observer.actor_urn == recipients[idx].actor_urn:
+        if observer.uuid() == recipients[idx].uuid():
           del recipients[idx]
 
   def __watch__(self, message):
@@ -244,8 +167,7 @@ class Server(ThreadingActor):
     else:
       self.__observers__.get(fqn).append(observer)
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def receive(self, message):
     fqn = self.__fqn__(message)
     if isinstance(message, RouteMessageCommand):
       self.__unicast__(message)
@@ -259,11 +181,6 @@ class Server(ThreadingActor):
       self.__register__(message)
     elif isinstance(message, BootstrapCompleteEvent):
       self.__start_services__()
-
-  def on_stop(self):
-    self.__applications__.shutdown()
-    self.__services__.shutdown()
-    reactor.stop()
 
 class BootstrapCompleteEvent(object):
   def __init__(self, *args, **kwargs):

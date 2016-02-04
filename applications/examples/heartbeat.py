@@ -19,8 +19,8 @@
 #
 # Lyle Pratt <lylepratt@gmail.com>
 
+from lib.application import Actor
 from lib.server import ServerInfoEvent
-from pykka import ThreadingActor
 from services.http import HttpRequestEvent
 from services.freeswitch import EventSocketEvent
 from utils import *
@@ -28,7 +28,7 @@ from utils import *
 import json
 import logging
 
-class Monitor(ThreadingActor):
+class Monitor(Actor):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('examples.heartbeat.Monitor')
@@ -41,8 +41,7 @@ class Monitor(ThreadingActor):
       'Session-Peak-Max': 0
     }]
 
-  def on_receive(self, message):
-    message = message.get('body')
+  def receive(self, message):
     if isinstance(message, EventSocketEvent):
       self.__info__ = [message.headers()]
     elif isinstance(message, HttpRequestEvent):

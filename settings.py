@@ -167,17 +167,3 @@ services = [
     'target': 'services.http.HttpDispatcher'
   }
 ]
-
-# The Redis cache service configuration.
-redis = {
-  'connections': {
-    'pool_size': 10
-  }
-}
-
-# The twisted framework configuration.
-twisted = {
-  'threads': {
-    'pool_size': 16
-  }
-}
