@@ -342,7 +342,7 @@ class TimerService(Actor):
     '''
     Initialized the TimerService.
     '''
-    self.__clock__ = MonotonicClock(self.actor_ref, TimerService.TICK_SIZE)
+    self.__clock__ = MonotonicClock(self, TimerService.TICK_SIZE)
     self.__clock__.start()
 
   def on_stop(self):

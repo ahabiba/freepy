@@ -24,7 +24,7 @@ class HelloWorld(Actor):
   def __init__(self, *args, **kwargs):
     super(HelloWorld, self).__init__(*args, **kwargs)
 
-  def on_receive(self, message):
+  def receive(self, message):
     if isinstance(message, HttpRequestEvent):
       request = message.request()
       if request.method == 'GET':
