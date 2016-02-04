@@ -25,7 +25,6 @@ import settings
 import json
 import logging
 import os
-import pykka
 import signal
 import sys
 
