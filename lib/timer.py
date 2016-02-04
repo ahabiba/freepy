@@ -231,7 +231,7 @@ class TimerService(Actor):
         recurring.append(timer)
       else:
         lookup_table = self.__actor_lookup_table__
-        urn = timer.observer().actor_urn
+        urn = timer.observer().uuid()
         location = lookup_table.get(urn)
         if location:
           del lookup_table[urn]
@@ -247,7 +247,7 @@ class TimerService(Actor):
 
     Arguments: command - The StopTimeoutCommand.
     '''
-    urn = command.get_sender().actor_urn
+    urn = command.get_sender().uuid()
     location = self.__actor_lookup_table__.get(urn)
     if location:
       del self.__actor_lookup_table__[urn]
@@ -259,7 +259,7 @@ class TimerService(Actor):
     '''
     Updates a lookup table used for O(1) timer removal.
     '''
-    urn = node.value.observer().actor_urn
+    urn = node.value.observer().uuid()
     location = {
       'vector': vector,
       'node': node
@@ -323,7 +323,7 @@ class TimerService(Actor):
     Arguments: message - The message to be processed.
     '''
     if isinstance(message, ReceiveTimeoutCommand):
-      uuid = message.get_sender().actor_urn
+      uuid = message.get_sender().uuid()
       if not self.__actor_lookup_table__.has_key(uuid):
         timeout = message.timeout()
         observer = message.get_sender()
