@@ -379,8 +379,8 @@ class EventSocketDispatcher(Actor):
   def __unwatch__(self, message):
     for idx in xrange(len(self.__watches__)):
       watch = self.__watches__[idx]
-      if message.observer().actor_urn == \
-         watch.observer().actor_urn:
+      if message.observer().uuid() == \
+         watch.observer().uuid():
         if message.header_name() == watch.header_name() and \
            message.header_pattern() == watch.header_pattern() and \
            message.header_value() == watch.header_value():
