@@ -19,6 +19,13 @@
 
 from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 
+# Concurrency settings.
+concurrency = {
+  'threads': {
+    # 'pool_size': 4
+  }
+}
+
 # The SQL Alchemy service configuration.
 databases = [
   {

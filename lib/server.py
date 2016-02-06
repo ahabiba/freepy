@@ -32,8 +32,8 @@ class Bootstrap(object):
   def __init__(self, *args, **kwargs):
     self.__logger__ = logging.getLogger('lib.server.Bootstrap')
 
-  def __create_router__(self):
-    router = MessageRouter()
+  def __create_router__(self, n_threads):
+    router = MessageRouter(n_threads = n_threads)
     router.start()
     return router
 
@@ -71,7 +71,9 @@ class Bootstrap(object):
       level = settings.logging.get('level')
     )
     meta = self.__load_meta__()
-    router = self.__create_router__()
+    router = self.__create_router__(
+      n_threads = settings.concurrency.get('threads').get('pool_size')
+    )
     server = self.__create_server__(meta, router)
     server.tell(BootstrapCompleteEvent())
     # Register interrupt signal handler.
