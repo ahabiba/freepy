@@ -21,6 +21,7 @@ from Queue import Queue
 from threading import Thread
 from uuid import uuid4
 
+import multiprocessing
 import logging
 import sys
 
@@ -112,12 +113,18 @@ class MessageRouter(object):
   def send(self, message):
     self.__queue__.put(message)
 
-  def start(self):
-    self.worker = MessageRouterWorker(self.__logger__, self.__queue__)
-    self.worker.start()
+  def start(self, n_threads = None):
+    if n_threads == None:
+      n_threads = multiprocessing.cpu_count()
+    self.pool = []
+    for _ in xrange(n_threads):
+      worker = MessageRouterWorker(self.__logger__, self.__queue__)
+      worker.start()
+      self.pool.append(worker)
 
   def stop(self):
-    self.__queue__.put((None, None))
+    for _ in xrange(len(self.pool)):
+      self.__queue__.put((None, None))
     self.worker = None
 
 class MessageRouterWorker(Thread):
