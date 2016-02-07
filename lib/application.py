@@ -18,7 +18,7 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from Queue import Queue
-from threading import Thread
+from threading import Lock, Thread
 from uuid import uuid4
 
 import multiprocessing
@@ -30,6 +30,9 @@ class Actor(object):
     super(Actor, self).__init__()
     self.__router__ = kwargs.get('router')
     self.__uuid__ = uuid4().get_urn()
+    lock = Lock()
+    self.lock = lock.acquire
+    self.unlock = lock.release
 
   def receive(self, message):
     pass
@@ -139,7 +142,9 @@ class MessageRouterWorker(Thread):
       if recipient == None and message == None:
         break
       try:
+        recipient.lock()
         recipient.receive(message)
+        recipient.unlock()
       except Exception as e:
         if self.__logger__.isEnabledFor(logging.DEBUG):
           self.__logger__.exception(e)
