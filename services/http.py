@@ -45,9 +45,14 @@ class HttpDispatcher(Actor):
                                    message)
           self.__server__.tell(RouteMessageCommand(event, target))
           return
-    self.__dispatch_not_found__(message)
+    deferred = reactor.callLater(0, self.__dispatch_not_found__, message)
+    message.notifyFinish().addErrback(
+      lambda err, deferred: deferred.cancel(), deferred
+    )
 
   def __dispatch_not_found__(self, message):
+    message.setHeader('Server', 'FreePy/2.0')
+    message.setHeader('Content-Type', 'text/plain')
     message.setResponseCode(404)
     if settings.http.has_key('pages'):
       if settings.http.get('pages').has_key('404'):
