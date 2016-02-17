@@ -19,6 +19,7 @@
 
 class Config():
     # A list of services to register with the router.
+    application_prefix = ''
     services = [
       {
         'name': 'SQL Alchemy Object Relational Mapper Service',
@@ -125,7 +126,14 @@ class Config():
     ]
 
     def update(self, settings):
+      if type(settings) == dict:
+        self.__dict__.update(settings)
+      else:
         self.__dict__ = vars(settings).copy()
+
+    def set(self, attr, val):
+        self.__dict__[attr] = val
+
     def get(self, attr, default):
         return self.__dict__.get(attr, default)
 

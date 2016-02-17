@@ -36,6 +36,7 @@ class Bootstrap(object):
       settings.update(kwargs.get('settings'))
     else:
       settings.update(__import__('config'))
+      settings.update({'application_prefix': 'applications'})
     self.__metafile__ = kwargs.get('metafile', None)
 
   def __create_router__(self, n_threads):
