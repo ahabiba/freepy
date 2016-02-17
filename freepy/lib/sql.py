@@ -17,13 +17,14 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from application import Actor
-from server import RouteMessageCommand, ServerInitEvent
+from freepy.lib.application import Actor
+from freepy.lib.server import RouteMessageCommand, ServerInitEvent
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import logging
-import settings
+from freepy import settings
 
 class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):

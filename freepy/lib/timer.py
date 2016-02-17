@@ -17,8 +17,9 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from application import Actor
-from server import RouteMessageCommand
+from freepy.lib.application import Actor
+from freepy.lib.server import RouteMessageCommand
+
 from llist import dllist
 from threading import Thread
 
