@@ -17,9 +17,6 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-# import sys
-# sys.path.append('..')
-
 from freepy.lib.server import Bootstrap
 
 if __name__ == "__main__":

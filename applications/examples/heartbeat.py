@@ -19,10 +19,10 @@
 #
 # Lyle Pratt <lylepratt@gmail.com>
 
-from lib.application import Actor
-from lib.server import ServerInfoEvent
-from services.http import HttpRequestEvent
-from services.freeswitch import EventSocketEvent
+from freepy.lib.application import Actor
+from freepy.lib.server import ServerInfoEvent
+from freepy.services.http import HttpRequestEvent
+from freepy.services.freeswitch import EventSocketEvent
 from utils import *
 
 import json
