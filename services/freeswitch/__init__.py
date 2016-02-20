@@ -258,6 +258,14 @@ class EventSocketDispatcher(Actor):
     self.__transactions__ = {}
     self.__watches__ = []
 
+  def __dispatch_auth__(self, message):
+    bootstrapper = EventSocketBootstrapper(
+      dispatcher = self,
+      events = self.__events__,
+      router = self.__router__
+    )
+    bootstrapper.tell(message)
+
   def __dispatch_command__(self, message):
     observer = message.sender()
     if isinstance(message, BackgroundCommand):
@@ -360,12 +368,6 @@ class EventSocketDispatcher(Actor):
     self.__owner__ = message.owner()
 
   def __start__(self):
-    bootstrapper = EventSocketBootstrapper
-    bootstrapper(
-      dispatcher = self,
-      events = self.__events__,
-      router = self.__router__
-    )
     proxy = EventSocketProxy(self)
     reactor.connectTCP(
       settings.freeswitch.get('address'),
@@ -393,7 +395,11 @@ class EventSocketDispatcher(Actor):
     if isinstance(message, EventSocketCommand):
       self.__dispatch_command__(message)
     elif isinstance(message, EventSocketEvent):
-      self.__dispatch_event__(message)
+      content_type = message.headers().get('Content-Type')
+      if content_type == 'auth/request':
+        self.__dispatch_auth__(message)
+      else:
+        self.__dispatch_event__(message)
     elif isinstance(message, EventSocketWatchCommand):
       self.__watch__(message)
     elif isinstance(message, EventSocketUnwatchCommand):
