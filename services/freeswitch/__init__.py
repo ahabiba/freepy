@@ -56,10 +56,10 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
     self.__dispatcher__ = kwargs.get('dispatcher')
     self.__events__ = kwargs.get('events')
     self.__password__ = settings.freeswitch.get('password')
-    self.__start__()
 
   @Action(state = 'authenticating')
   def __authenticate__(self):
+    self.__dispatcher__.tell(EventSocketLockCommand(self))
     self.__dispatcher__.tell(AuthCommand(self, password = self.__password__))
 
   @Action(state = 'bootstrapping')
@@ -79,9 +79,6 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
   @Action(state = 'done')
   def __finish__(self):
     self.__dispatcher__.tell(EventSocketUnlockCommand())
-
-  def __start__(self):
-    self.__dispatcher__.tell(EventSocketLockCommand(self))
 
   def receive(self, message):
     if isinstance(message, EventSocketEvent):
