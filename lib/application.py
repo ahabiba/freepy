@@ -29,7 +29,7 @@ class Actor(object):
   def __init__(self, *args, **kwargs):
     super(Actor, self).__init__()
     self.__router__ = kwargs.get('router')
-    self.__uuid__ = uuid4().get_urn()
+    self.__urn__ = uuid4().get_urn()
     lock = Lock()
     self.lock = lock.acquire
     self.unlock = lock.release
@@ -40,8 +40,8 @@ class Actor(object):
   def tell(self, message):
     self.__router__.send((self, message))
 
-  def uuid(self):
-    return self.__uuid__
+  def urn(self):
+    return self.__urn__
 
 class ActorRegistry(object):
   def __init__(self, *args, **kwargs):
