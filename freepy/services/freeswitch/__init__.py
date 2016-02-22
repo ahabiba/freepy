@@ -57,10 +57,10 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
     self.__dispatcher__ = kwargs.get('dispatcher')
     self.__events__ = kwargs.get('events')
     self.__password__ = settings.freeswitch.get('password')
-    self.__start__()
 
   @Action(state = 'authenticating')
   def __authenticate__(self):
+    self.__dispatcher__.tell(EventSocketLockCommand(self))
     self.__dispatcher__.tell(AuthCommand(self, password = self.__password__))
 
   @Action(state = 'bootstrapping')
@@ -80,9 +80,6 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
   @Action(state = 'done')
   def __finish__(self):
     self.__dispatcher__.tell(EventSocketUnlockCommand())
-
-  def __start__(self):
-    self.__dispatcher__.tell(EventSocketLockCommand(self))
 
   def receive(self, message):
     if isinstance(message, EventSocketEvent):
@@ -259,6 +256,14 @@ class EventSocketDispatcher(Actor):
     self.__transactions__ = {}
     self.__watches__ = []
 
+  def __dispatch_auth__(self, message):
+    bootstrapper = EventSocketBootstrapper(
+      dispatcher = self,
+      events = self.__events__,
+      router = self.__router__
+    )
+    bootstrapper.tell(message)
+
   def __dispatch_command__(self, message):
     observer = message.sender()
     if isinstance(message, BackgroundCommand):
@@ -361,12 +366,6 @@ class EventSocketDispatcher(Actor):
     self.__owner__ = message.owner()
 
   def __start__(self):
-    bootstrapper = EventSocketBootstrapper
-    bootstrapper(
-      dispatcher = self,
-      events = self.__events__,
-      router = self.__router__
-    )
     proxy = EventSocketProxy(self)
     reactor.connectTCP(
       settings.freeswitch.get('address'),
@@ -380,8 +379,8 @@ class EventSocketDispatcher(Actor):
   def __unwatch__(self, message):
     for idx in xrange(len(self.__watches__)):
       watch = self.__watches__[idx]
-      if message.observer().uuid() == \
-         watch.observer().uuid():
+      if message.observer().urn() == \
+         watch.observer().urn():
         if message.header_name() == watch.header_name() and \
            message.header_pattern() == watch.header_pattern() and \
            message.header_value() == watch.header_value():
@@ -394,7 +393,11 @@ class EventSocketDispatcher(Actor):
     if isinstance(message, EventSocketCommand):
       self.__dispatch_command__(message)
     elif isinstance(message, EventSocketEvent):
-      self.__dispatch_event__(message)
+      content_type = message.headers().get('Content-Type')
+      if content_type == 'auth/request':
+        self.__dispatch_auth__(message)
+      else:
+        self.__dispatch_event__(message)
     elif isinstance(message, EventSocketWatchCommand):
       self.__watch__(message)
     elif isinstance(message, EventSocketUnwatchCommand):

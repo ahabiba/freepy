@@ -31,7 +31,7 @@ class Actor(object):
   def __init__(self, *args, **kwargs):
     super(Actor, self).__init__()
     self.__router__ = kwargs.get('router')
-    self.__uuid__ = uuid4().get_urn()
+    self.__urn__ = uuid4().get_urn()
     lock = Lock()
     self.lock = lock.acquire
     self.unlock = lock.release
@@ -42,8 +42,8 @@ class Actor(object):
   def tell(self, message):
     self.__router__.send((self, message))
 
-  def uuid(self):
-    return self.__uuid__
+  def urn(self):
+    return self.__urn__
 
 class ActorRegistry(object):
   def __init__(self, *args, **kwargs):
@@ -61,14 +61,14 @@ class ActorRegistry(object):
     actor = None
     if self.__classes__.has_key(fqn):
       klass = self.__classes__.get(fqn)
-      actor = klass(router = self.__router__)
-      if self.__logger__.isEnabledFor(logging.DEBUG):
-        self.__logger__.info('Started %s' % fqn)
-      if not self.__message__ == None:
-        try:
+      try:
+        actor = klass(router = self.__router__)
+        if self.__logger__.isEnabledFor(logging.DEBUG):
+          self.__logger__.info('Started %s' % fqn)
+        if not self.__message__ == None:
           actor.tell(self.__message__)
-        except Exception as e:
-          self.__logger__.exception(e)
+      except Exception as e:
+        self.__logger__.exception(e)
     elif self.__objects__.has_key(fqn):
       actor = self.__objects__.get(fqn)
     return actor
@@ -99,15 +99,18 @@ class ActorRegistry(object):
     if not singleton:
       self.__classes__.update({fqn: klass})
     else:
-      actor = klass(router = self.__router__)
-      if self.__logger__.isEnabledFor(logging.DEBUG):
-        self.__logger__.info('Started %s' % fqn)
-      self.__objects__.update({fqn: actor})
-      if not self.__message__ == None:
-        try:
-          actor.tell(self.__message__)
-        except Exception as e:
-          self.__logger__.exception(e)
+      try:
+        actor = klass(router = self.__router__)
+        if self.__logger__.isEnabledFor(logging.DEBUG):
+          self.__logger__.info('Started %s' % fqn)
+        self.__objects__.update({fqn: actor})
+        if not self.__message__ == None:
+          try:
+            actor.tell(self.__message__)
+          except Exception as e:
+            self.__logger__.exception(e)
+      except Exception as e:
+        self.__logger__.exception(e)
 
   def shutdown(self):
     self.__router__.stop()
@@ -146,10 +149,10 @@ class MessageRouterWorker(Thread):
       recipient, message = self.__queue__.get(True)
       if recipient == None and message == None:
         break
+      recipient.lock()
       try:
-        recipient.lock()
         recipient.receive(message)
-        recipient.unlock()
       except Exception as e:
         if self.__logger__.isEnabledFor(logging.DEBUG):
           self.__logger__.exception(e)
+      recipient.unlock()

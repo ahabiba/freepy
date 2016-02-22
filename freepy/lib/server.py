@@ -174,7 +174,7 @@ class Server(Actor):
     if self.__observers__.has_key(fqn):
       recipients = self.__observers__.get(fqn)
       for idx in xrange(len(recipients)):
-        if observer.uuid() == recipients[idx].uuid():
+        if observer.urn() == recipients[idx].urn():
           del recipients[idx]
 
   def __watch__(self, message):
