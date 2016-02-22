@@ -74,7 +74,7 @@ class ActorRegistry(object):
     return actor
 
   def klass(self, fqn):
-    if 'freepy' not in fqn:
+    if 'freepy' not in fqn and len(settings.application_prefix):
       fqn = '%s.%s' % (settings.application_prefix, fqn)
     delimiter = fqn.rfind('.')
     root = fqn[:delimiter]
