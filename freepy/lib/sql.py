@@ -16,6 +16,7 @@
 # under the License.
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
+from sqlalchemy.pool import StaticPool
 
 from freepy.lib.application import Actor
 from freepy.lib.server import RouteMessageCommand, ServerInitEvent
@@ -62,7 +63,9 @@ class SQLAlchemyService(Actor):
             timeout = 30
           url = database.get('url')
           if 'sqlite' in url:
-            engine = create_engine(url)
+            engine = create_engine(url,
+                                   connect_args={'check_same_thread':False},
+                                   poolclass=StaticPool)
           else:
             engine = create_engine(
               url,
