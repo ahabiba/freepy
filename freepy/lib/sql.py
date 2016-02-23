@@ -60,12 +60,16 @@ class SQLAlchemyService(Actor):
             max_overflow = 10
             pool_size = 20
             timeout = 30
-          engine = create_engine(
-            database.get('url'),
-            max_overflow = max_overflow, 
-            pool_size = pool_size,
-            pool_timeout = timeout
-          )
+          url = database.get('url')
+          if 'sqlite' in url:
+            engine = create_engine(url)
+          else:
+            engine = create_engine(
+              url,
+              max_overflow = max_overflow,
+              pool_size = pool_size,
+              pool_timeout = timeout
+            )
           self.__engines__.update({
             database.get('name'): engine
           })
