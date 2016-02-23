@@ -45,10 +45,7 @@ class HttpDispatcher(Actor):
                                    message)
           self.__server__.tell(RouteMessageCommand(event, target))
           return
-    deferred = reactor.callLater(0, self.__dispatch_not_found__, message)
-    message.notifyFinish().addErrback(
-      lambda err, deferred: deferred.cancel(), deferred
-    )
+    deferred = reactor.callFromThread(self.__dispatch_not_found__, message)
 
   def __dispatch_not_found__(self, message):
     message.setHeader('Server', 'FreePy/2.0')
