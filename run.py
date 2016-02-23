@@ -17,7 +17,7 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.server import Bootstrap
+from freepy.lib.server import Bootstrap
 
 if __name__ == "__main__":
   Bootstrap().start()

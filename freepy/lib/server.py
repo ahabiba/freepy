@@ -17,20 +17,27 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from application import *
+from freepy.lib.application import *
 from threading import Thread
 from twisted.internet import reactor
 
-import settings
 import json
 import logging
 import os
 import signal
 import sys
 
+from freepy import settings
+
 class Bootstrap(object):
   def __init__(self, *args, **kwargs):
     self.__logger__ = logging.getLogger('lib.server.Bootstrap')
+    if 'settings' in kwargs:
+      settings.update(kwargs.get('settings'))
+    else:
+      settings.update(__import__('config'))
+      settings.update({'application_prefix': 'applications'})
+    self.__metafile__ = kwargs.get('metafile', None)
 
   def __create_router__(self, n_threads):
     router = MessageRouter(n_threads = n_threads)
@@ -41,27 +48,37 @@ class Bootstrap(object):
     return Server(meta = meta, router = router)
 
   def __load_meta__(self):
-    cwd = os.path.dirname(os.path.realpath(__file__))
-    cwd = os.path.dirname(cwd)
-    apps = os.path.join(cwd, 'applications')
-    meta = []
-    for item in os.listdir(apps):
-      path = os.path.join(apps, item)
-      if not os.path.isdir(path):
-        continue
-      metafile = os.path.join(path, 'metafile.json')
+    def load_meta_file(metafile):
       if not os.path.exists(metafile):
         self.__logger__.warning('The application %s is missing a metafile.' % \
                                 item)
-        continue
+        return
       with open(metafile, 'r') as input:
         try:
-          meta.append(json.loads(input.read()))
+          return json.loads(input.read())
         except Exception as e:
           self.__logger__.warning('There was an error reading the ' + \
                                   'metafile for %s.' % item)
           self.__logger__.exception(e)
+          return
+
+    meta = []
+
+    if self.__metafile__:
+      metafile = os.path.join('.', self.__metafile__)
+      meta.append(load_meta_file(metafile))
+    else:
+      cwd = os.path.dirname(os.path.realpath(__file__))
+      cwd = os.path.dirname(cwd)
+      apps = os.path.join(cwd, '../applications')
+
+      for item in os.listdir(apps):
+        path = os.path.join(apps, item)
+        if not os.path.isdir(path):
           continue
+        metafile = os.path.join(path, 'metafile.json')
+        meta.append(load_meta_file(metafile))
+
     return meta
 
   def start(self):
@@ -115,7 +132,7 @@ class Server(Actor):
 
   def __register__(self, message):
     self.__applications__.register(
-      'applications.%s' % message.fqn(),
+      message.fqn(),
       message.singleton()
     )
 
@@ -143,7 +160,7 @@ class Server(Actor):
 
   def __unicast__(self, message):
     recipient = None
-    target = 'applications.%s' % message.target()
+    target = message.target()
     if self.__services__.exists(target):
       recipient = self.__services__.get(target)
     elif self.__applications__.exists(target):

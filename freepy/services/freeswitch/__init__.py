@@ -18,10 +18,11 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from commands import *
-from lib.application import Actor
-from lib.fsm import *
-from lib.server import RegisterActorCommand, RouteMessageCommand, \
+from freepy.lib.application import Actor
+from freepy.lib.fsm import *
+from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
+
 from os import SEEK_END
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
@@ -34,7 +35,7 @@ except:
 
 import logging
 import re
-import settings
+from freepy import settings
 import urllib
 
 class EventSocketBootstrapper(FiniteStateMachine, Actor):

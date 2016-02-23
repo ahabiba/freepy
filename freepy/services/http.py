@@ -17,8 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.application import Actor
-from lib.server import RegisterActorCommand, RouteMessageCommand, \
+from freepy.lib.application import Actor
+from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 from twisted.internet import reactor
 from twisted.web.resource import Resource
@@ -26,7 +26,7 @@ from twisted.web.server import NOT_DONE_YET, Request, Site
 
 import logging
 import re
-import settings
+from freepy import settings
 
 class HttpDispatcher(Actor):
   def __init__(self, *args, **kwargs):

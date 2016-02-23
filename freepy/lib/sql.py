@@ -16,14 +16,16 @@
 # under the License.
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
+from sqlalchemy.pool import StaticPool
 
-from application import Actor
-from server import RouteMessageCommand, ServerInitEvent
+from freepy.lib.application import Actor
+from freepy.lib.server import RouteMessageCommand, ServerInitEvent
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import logging
-import settings
+from freepy import settings
 
 class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):
@@ -59,12 +61,18 @@ class SQLAlchemyService(Actor):
             max_overflow = 10
             pool_size = 20
             timeout = 30
-          engine = create_engine(
-            database.get('url'),
-            max_overflow = max_overflow, 
-            pool_size = pool_size,
-            pool_timeout = timeout
-          )
+          url = database.get('url')
+          if 'sqlite' in url:
+            engine = create_engine(url,
+                                   connect_args={'check_same_thread':False},
+                                   poolclass=StaticPool)
+          else:
+            engine = create_engine(
+              url,
+              max_overflow = max_overflow,
+              pool_size = pool_size,
+              pool_timeout = timeout
+            )
           self.__engines__.update({
             database.get('name'): engine
           })

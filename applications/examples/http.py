@@ -17,8 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from lib.application import Actor
-from services.http import HttpRequestEvent
+from freepy.lib.application import Actor
+from freepy.services.http import HttpRequestEvent
 
 class HelloWorld(Actor):
   def __init__(self, *args, **kwargs):

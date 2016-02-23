@@ -25,6 +25,8 @@ import multiprocessing
 import logging
 import sys
 
+from freepy import settings
+
 class Actor(object):
   def __init__(self, *args, **kwargs):
     super(Actor, self).__init__()
@@ -72,6 +74,8 @@ class ActorRegistry(object):
     return actor
 
   def klass(self, fqn):
+    if 'freepy' not in fqn and len(settings.application_prefix):
+      fqn = '%s.%s' % (settings.application_prefix, fqn)
     delimiter = fqn.rfind('.')
     root = fqn[:delimiter]
     name = fqn[delimiter + 1:]
@@ -84,6 +88,7 @@ class ActorRegistry(object):
     except Exception as e:
       self.__logger__.exception(e)
     return getattr(module, name)
+
 
   def register(self, fqn, singleton = False):
     if self.__classes__.has_key(fqn):
