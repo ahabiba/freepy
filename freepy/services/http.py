@@ -66,7 +66,7 @@ class HttpDispatcher(Actor):
     self.__server__ = message.server()
     self.__rules__ = []
     for item in message.meta():
-      if item.has_key('http'):
+      if item and item.has_key('http'):
         http = item.get('http')
         rules = http.get('rules')
         if rules is not None and len(rules) > 0:

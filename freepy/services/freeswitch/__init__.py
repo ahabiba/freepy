@@ -335,7 +335,7 @@ class EventSocketDispatcher(Actor):
       self.__rules__ = []
       self.__server__ = message.server()
       for item in message.meta():
-        if item.has_key('freeswitch'):
+        if item and item.has_key('freeswitch'):
           freeswitch = item.get('freeswitch')
           events = freeswitch.get('events')
           if events is not None and len(events) > 0:
