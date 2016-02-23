@@ -150,6 +150,7 @@ services = [
       'freepy.services.freeswitch.commands.SetVariableCommand',
       'freepy.services.freeswitch.commands.ShutdownCommand',
       'freepy.services.freeswitch.commands.SimplifyCommand',
+      'freepy.services.freeswitch.commands.SmppSendCommand',
       'freepy.services.freeswitch.commands.StartDebugMediaCommand',
       'freepy.services.freeswitch.commands.StartDisplaceCommand',
       'freepy.services.freeswitch.commands.StartRecordingCommand',

@@ -81,9 +81,7 @@ class ActorRegistry(object):
     name = fqn[delimiter + 1:]
     module = sys.modules.get(root)
     try:
-      if not module == None:
-        module = reload(module)
-      else:
+      if module == None:
         module = __import__(root, globals(), locals(), [name], -1)
     except Exception as e:
       self.__logger__.exception(e)

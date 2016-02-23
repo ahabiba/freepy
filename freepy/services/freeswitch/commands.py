@@ -1215,7 +1215,7 @@ class SendInfoCommand(UUIDCommand):
 
   def __str__(self):
     return 'bgapi uuid_send_info %s\nJob-UUID: %s\n\n' % (self.__uuid__,
-      self.__job_uuid__)
+      self.__job_uuid__)  
 
 class SetAudioLevelCommand(UUIDCommand):
   '''
@@ -1469,6 +1469,40 @@ class StartDebugMediaCommand(UUIDCommand):
   def __str__(self):
     return 'bgapi uuid_debug_media %s %s on\nJob-UUID: %s\n\n' % (self.__uuid__,
       self.__option__, self.__job_uuid__)
+
+class SmppSendCommand(BackgroundCommand):
+  '''
+  Sends an SMS message using mod_smpp.
+
+  Arguments:  sender - The freepy actor sending this SmppSendCommand.
+              gateway - The SMPP gateway to use for this message.
+              source - The mobile number of the SMS sender.
+              destination - The mobile number of the SMS recipient.
+              message - The 160 character message that will be sent.
+  '''
+  def __init__(self, *args, **kwargs):
+    super(SmppSendCommand, self).__init__(*args, **kwargs)
+    self.__destination__ = kwargs.get('destination')
+    self.__gateway__ = kwargs.get('gateway')
+    self.__message__ = kwargs.get('message')
+    self.__source__ = kwargs.get('source')
+
+  def destination(self):
+    return self.__destination__
+
+  def gateway(self):
+    return self.__gateway__
+
+  def message(self):
+    return self.__message__
+
+  def source(self):
+    return self.__source__
+
+  def __str__(self):
+    return 'bgapi smpp_send %s|%s|%s|%s\nJob-UUID: %s\n\n' % (self.__gateway__,
+      self.__destination__, self.__source__, self.__message__,
+      self.__job_uuid__)
 
 class StartDisplaceCommand(UUIDCommand):
   '''
