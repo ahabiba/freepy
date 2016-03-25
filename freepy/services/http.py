@@ -23,12 +23,15 @@ from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
 from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET, Request, Site
+from urlparse import parse_qs, urlparse
 
 import logging
 import re
 from freepy import settings
 
 class HttpDispatcher(Actor):
+  empty_qs = dict()
+
   def __init__(self, *args, **kwargs):
     super(HttpDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('services.http.HttpDispatcher')
@@ -40,8 +43,10 @@ class HttpDispatcher(Actor):
       for url in urls:
         result = re.match(url, message.path)
         if result is not None:
+          qs = self.__parse_qs__(message)
           event = HttpRequestEvent(result.groups(),
                                    result.groupdict(),
+                                   qs,
                                    message)
           self.__server__.tell(RouteMessageCommand(event, target))
           return
@@ -86,6 +91,13 @@ class HttpDispatcher(Actor):
             self.__logger__.exception(e)
     self.__start__()
 
+  def __parse_qs__(self, message):
+    url = urlparse(message.uri)
+    if len(url.query) > 0:
+      return parse_qs(url.query)
+    else:
+      return HttpDispatcher.empty_qs
+
   def __start__(self):
     proxy = HttpProxy(self)
     reactor.listenTCP(
@@ -124,10 +136,11 @@ class HttpProxy(Resource):
     return NOT_DONE_YET
 
 class HttpRequestEvent(object):
-  def __init__(self, params, params_dict, request):
+  def __init__(self, params, params_dict, qs, request):
     self.__params__ = params
     self.__params_dict__ = params_dict
     self.__request__ = request
+    self.__qs__ = qs
 
   def params(self):
     return self.__params__
@@ -137,3 +150,6 @@ class HttpRequestEvent(object):
 
   def request(self):
     return self.__request__
+
+  def query_string(self):
+    return self.__qs__
