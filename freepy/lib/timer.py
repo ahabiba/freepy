@@ -18,12 +18,12 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from freepy.lib.application import Actor
-from freepy.lib.server import RouteMessageCommand
-
+from freepy.lib.server import RouteMessageCommand, ServerDestroyEvent, ServerInitEvent
 from llist import dllist
 from threading import Thread
 
-import logging, time
+import logging
+import time
 
 class ReceiveTimeoutCommand(object):
   def __init__(self, sender, timeout, recurring = False):
@@ -31,7 +31,7 @@ class ReceiveTimeoutCommand(object):
     self.__timeout__ = timeout
     self.__recurring__ = recurring
 
-  def get_sender(self):
+  def sender(self):
     return self.__sender__
 
   def timeout(self):
@@ -44,7 +44,7 @@ class StopTimeoutCommand(object):
   def __init__(self, sender):
     self.__sender__ = sender
 
-  def get_sender(self):
+  def sender(self):
     return self.__sender__
 
 class ClockEvent(object):
@@ -248,7 +248,7 @@ class TimerService(Actor):
 
     Arguments: command - The StopTimeoutCommand.
     '''
-    urn = command.get_sender().urn()
+    urn = command.sender().urn()
     location = self.__actor_lookup_table__.get(urn)
     if location:
       del self.__actor_lookup_table__[urn]
@@ -311,42 +311,39 @@ class TimerService(Actor):
     node = vector[bucket].append(timer)
     self.__update_lookup_table__(vector[bucket], node)
 
-  def on_failure(self, exception_type, exception_value, traceback):
-    '''
-    Logs exceptions for the TimerService.
-    '''
-    self.__logger__.error(exception_value)
-
   def receive(self, message):
     '''
     Handles incoming messages.
 
     Arguments: message - The message to be processed.
     '''
-    if isinstance(message, ReceiveTimeoutCommand):
-      urn = message.get_sender().urn()
+    if isinstance(message, ClockEvent):
+      self.__tick__()
+    elif isinstance(message, ReceiveTimeoutCommand):
+      urn = message.sender().urn()
       if not self.__actor_lookup_table__.has_key(urn):
         timeout = message.timeout()
-        observer = message.get_sender()
+        observer = message.sender()
         recurring = message.recurring()
-        timer = TimerService.Timer(observer, timeout, recurring)
-        self.__schedule__(timer)
+        self.__schedule__(TimerService.Timer(observer, timeout, recurring))
       else:
         self.__logger__.warning('Actor %s is requesting too many simultaneous timers.'
           % urn)
     elif isinstance(message, StopTimeoutCommand):
       self.__unschedule__(message)
-    elif isinstance(message, ClockEvent):
-      self.__tick__()
+    elif isinstance(message, ServerInitEvent):
+      self.__start__()
+    elif isinstance(message, ServerDestroyEvent):
+      self.__stop__()
 
-  def on_start(self):
+  def __start__(self):
     '''
     Initialized the TimerService.
     '''
     self.__clock__ = MonotonicClock(self, TimerService.TICK_SIZE)
     self.__clock__.start()
 
-  def on_stop(self):
+  def __stop__(self):
     '''
     Cleans up after TimerService.
     '''

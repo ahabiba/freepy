@@ -398,7 +398,7 @@ class DualTransferCommand(UUIDCommand):
     self.__context_a__ = kwargs.get('context_a')
     self.__context_b__ = kwargs.get('context_b')
     if not self.__extension_a__ and not self.__extension_b__:
-      raise RuntimeError('A dual transer EventSocketCommand requires the extension_a \
+      raise RuntimeError('A dual transfer EventSocketCommand requires the extension_a \
         and extension_b parameters to be provided.')
 
   def extension_a(self):
