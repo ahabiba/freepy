@@ -91,6 +91,7 @@ services = [
     'name': 'FreeSWITCH Event Socket Service',
     'messages': [
       'freepy.services.freeswitch.EventSocketWatchCommand',
+      'freepy.services.freeswitch.EventSocketUnwatchCommand',
       'freepy.services.freeswitch.commands.ACLCheckCommand',
       'freepy.services.freeswitch.commands.AnswerCommand',
       'freepy.services.freeswitch.commands.BreakCommand',

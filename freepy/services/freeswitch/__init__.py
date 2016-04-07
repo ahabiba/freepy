@@ -385,6 +385,7 @@ class EventSocketDispatcher(Actor):
            message.header_pattern() == watch.header_pattern() and \
            message.header_value() == watch.header_value():
           del self.__watches__[idx]
+          break
 
   def __watch__(self, message):
     self.__watches__.append(message)
@@ -464,7 +465,7 @@ class EventSocketUnlockCommand(object):
   def __init__(self, *args, **kwargs):
     super(EventSocketUnlockCommand, self).__init__(*args, **kwargs)
 
-class EventSocketWatchCommand(object):
+class BaseEventSocketWatchCommand(object):
   def __init__(self, observer, header_name,
                header_pattern = None,
                header_value = None):
@@ -485,10 +486,10 @@ class EventSocketWatchCommand(object):
   def observer(self):
     return self.__observer__
 
-class EventSocketUnwatchCommand(EventSocketWatchCommand):
-  def __init__(self, observer, header_name,
-               header_pattern = None,
-               header_value = None):
-    super(EventSocketUnwatchCommand, self).__init__(
-      observer, header_name, header_pattern, header_value
-    )
+class EventSocketWatchCommand(BaseEventSocketWatchCommand):
+  def __init__(self, *args, **kwargs):
+    super(EventSocketWatchCommand, self).__init__(*args, **kwargs)
+
+class EventSocketUnwatchCommand(BaseEventSocketWatchCommand):
+  def __init__(self, *args, **kwargs):
+    super(EventSocketUnwatchCommand, self).__init__(*args, **kwargs)
