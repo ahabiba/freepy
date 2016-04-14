@@ -96,8 +96,7 @@ class Bootstrap(object):
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
       self.__logger__.critical('FreePy is now shutting down!!!')
-      reactor.stop()
-      router.stop()
+      server.tell(ShutdownEvent())
     signal.signal(signal.SIGINT, signal_handler)
     signal.pause()
 
@@ -105,15 +104,18 @@ class Server(Actor):
   def __init__(self, *args, **kwargs):
     super(Server, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('lib.server.Server')
-    self.__applications__ = ActorRegistry(
-      message = ServerInfoEvent(self),
-      router = kwargs.get('router')
-    )
     self.__observers__ = {}
     self.__reactor__ = Thread(target = reactor.run, args = (False,))
+    self.__router__ = kwargs.get('router')
+    self.__applications__ = ActorRegistry(
+      init_msg = ServerInfoEvent(self),
+      destroy_msg = ServerDestroyEvent(),
+      router = self.__router__
+    )
     self.__services__ = ActorRegistry(
-      message = ServerInitEvent(self, kwargs.get('meta')),
-      router = kwargs.get('router')
+      init_msg = ServerInitEvent(self, kwargs.get('meta')),
+      destroy_msg = ServerDestroyEvent(),
+      router = self.__router__
     )
 
   def __fqn__(self, obj):
@@ -168,6 +170,12 @@ class Server(Actor):
     if recipient is not None:
       recipient.tell(message.message())
 
+  def __stop__(self):
+    self.__applications__.shutdown()
+    self.__services__.shutdown()
+    self.__router__.stop()
+    reactor.stop()
+
   def __unwatch__(self, message):
     fqn = self.__fqn__(message.message())
     observer = message.observer()
@@ -199,6 +207,8 @@ class Server(Actor):
       self.__register__(message)
     elif isinstance(message, BootstrapCompleteEvent):
       self.__start_services__()
+    elif isinstance(message, ShutdownEvent):
+      self.__stop__()
 
 class BootstrapCompleteEvent(object):
   def __init__(self, *args, **kwargs):
@@ -269,3 +279,7 @@ class UnwatchMessagesCommand(object):
 
   def observer(self):
     return self.__observer__
+
+class ShutdownEvent(object):
+  def __init__(self, *args, **kwargs):
+    super(ShutdownEvent, self).__init__(*args, **kwargs)

@@ -49,13 +49,14 @@ class ActorRegistry(object):
   def __init__(self, *args, **kwargs):
     super(ActorRegistry, self).__init__()
     self.__logger__ = logging.getLogger('lib.application.ActorRegistry')
+    self.__actors__ = dict()
     self.__classes__ = dict()
-    self.__message__ = kwargs.get('message')
-    self.__objects__ = dict()
+    self.__destroy_msg__ = kwargs.get('destroy_msg')
+    self.__init_msg__ = kwargs.get('init_msg')
     self.__router__ = kwargs.get('router')
 
   def exists(self, fqn):
-    return self.__classes__.has_key(fqn) or self.__objects__.has_key(fqn)
+    return self.__classes__.has_key(fqn) or self.__actors__.has_key(fqn)
 
   def get(self, fqn):
     actor = None
@@ -65,12 +66,12 @@ class ActorRegistry(object):
         actor = klass(router = self.__router__)
         if self.__logger__.isEnabledFor(logging.DEBUG):
           self.__logger__.info('Started %s' % fqn)
-        if not self.__message__ == None:
-          actor.tell(self.__message__)
+        if not self.__init_msg__ == None:
+          actor.tell(self.__init_msg__)
       except Exception as e:
         self.__logger__.exception(e)
-    elif self.__objects__.has_key(fqn):
-      actor = self.__objects__.get(fqn)
+    elif self.__actors__.has_key(fqn):
+      actor = self.__actors__.get(fqn)
     return actor
 
   def klass(self, fqn):
@@ -91,8 +92,8 @@ class ActorRegistry(object):
   def register(self, fqn, singleton = False):
     if self.__classes__.has_key(fqn):
       del self.__classes__[fqn]
-    elif self.__objects__.has_key(fqn):
-      del self.__objects__[fqn]
+    elif self.__actors__.has_key(fqn):
+      del self.__actors__[fqn]
     klass = self.klass(fqn)
     if not singleton:
       self.__classes__.update({fqn: klass})
@@ -101,17 +102,18 @@ class ActorRegistry(object):
         actor = klass(router = self.__router__)
         if self.__logger__.isEnabledFor(logging.DEBUG):
           self.__logger__.info('Started %s' % fqn)
-        self.__objects__.update({fqn: actor})
-        if not self.__message__ == None:
+        self.__actors__.update({fqn: actor})
+        if not self.__init_msg__ == None:
           try:
-            actor.tell(self.__message__)
+            actor.tell(self.__init_msg__)
           except Exception as e:
             self.__logger__.exception(e)
       except Exception as e:
         self.__logger__.exception(e)
 
   def shutdown(self):
-    self.__router__.stop()
+    for actor in self.__actors__.values():
+      actor.tell(self.__destroy_msg__)
 
 class MessageRouter(object):
   def __init__(self, *args, **kwargs):
