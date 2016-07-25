@@ -35,3 +35,6 @@ nosetests.xml
 
 # Virtual Environment
 env
+
+.idea
+.DS_Store
