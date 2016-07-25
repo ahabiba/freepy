@@ -81,7 +81,12 @@ class Bootstrap(object):
 
     return meta
 
-  def start(self):
+  def start(self, wait_for_signal=True):
+    """
+    Start the freepy server
+    :param wait_for_signal: Block this thread and wait for interrupt signal?
+    :return:
+    """
     logging.basicConfig(
       filename = settings.logging.get('filename'),
       format = settings.logging.get('format'),
@@ -98,6 +103,8 @@ class Bootstrap(object):
       self.__logger__.critical('FreePy is now shutting down!!!')
       server.tell(ShutdownEvent())
     signal.signal(signal.SIGINT, signal_handler)
+    if not wait_for_signal:
+      return server
     signal.pause()
 
 class Server(Actor):
