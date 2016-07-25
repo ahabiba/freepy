@@ -155,4 +155,5 @@ class MessageRouterWorker(Thread):
       except Exception as e:
         if self.__logger__.isEnabledFor(logging.DEBUG):
           self.__logger__.exception(e)
-      recipient.unlock()
+      finally:
+        recipient.unlock()
