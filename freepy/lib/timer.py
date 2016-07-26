@@ -27,25 +27,22 @@ import time
 
 class ReceiveTimeoutCommand(object):
   def __init__(self, sender, timeout, recurring = False):
-    self.__sender__ = sender
-    self.__timeout__ = timeout
-    self.__recurring__ = recurring
+    self._sender = sender
+    self._timeout = timeout
+    self._recurring = recurring
 
   def sender(self):
-    return self.__sender__
+    return self._sender
 
   def timeout(self):
-    return self.__timeout__
+    return self._timeout
 
   def recurring(self):
-    return self.__recurring__
+    return self._recurring
 
 class StopTimeoutCommand(object):
   def __init__(self, sender):
-    self.__sender__ = sender
-
-  def sender(self):
-    return self.__sender__
+    self.sender = sender
 
 class ClockEvent(object):
   pass
@@ -54,24 +51,24 @@ class TimeoutEvent(object):
   pass
 
 class MonotonicClock(Thread):
-  def __init__(self, *args, **kwargs):
+  def __init__(self, actor, interval, *args, **kwargs):
     super(MonotonicClock, self).__init__(group = None)
-    self.__actor__ = args[0]
-    self.__interval__ = args[1]
-    self.__running__ = True
+    self._actor = actor
+    self._interval = interval
+    self._running = True
     # Singleton instance of ClockEvent.
-    self.__event__ = ClockEvent()
+    self._event = ClockEvent()
 
   def run(self):
-    while self.__running__:
-      time.sleep(self.__interval__)
-      if self.__running__:
-        self.__actor__.tell(self.__event__)
+    while self._running:
+      time.sleep(self._interval)
+      if self._running:
+        self._actor.tell(self._event)
       else:
         break
 
   def stop(self):
-    self.__running__ = False
+    self._running = False
 
 class TimerService(Actor):
   '''
@@ -84,26 +81,26 @@ class TimerService(Actor):
   def __init__(self, *args, **kwargs):
     super(TimerService, self).__init__(*args, **kwargs)
     # Initialize the timing wheels. The finest possible
-    self.__logger__ = logging.getLogger('lib.timer.TimerService')
+    self._logger = logging.getLogger('lib.timer.TimerService')
     # granularity is 100ms.
-    self.__timer_vector1__ = self.__create_vector__(256)
-    self.__timer_vector2__ = self.__create_vector__(256)
-    self.__timer_vector3__ = self.__create_vector__(256)
-    self.__timer_vector4__ = self.__create_vector__(256)
+    self._timer_vector1 = self._create_vector(256)
+    self._timer_vector2 = self._create_vector(256)
+    self._timer_vector3 = self._create_vector(256)
+    self._timer_vector4 = self._create_vector(256)
     # Initialize the timer vector indices.
-    self.__timer_vector2_index__  = 0
-    self.__timer_vector3_index__  = 0
-    self.__timer_vector4_index__  = 0
+    self._timer_vector2_index  = 0
+    self._timer_vector3_index  = 0
+    self._timer_vector4_index  = 0
     # Initialize the tick counter.
-    self.__current_tick__ = 0
+    self._current_tick = 0
     # Initialize the actor lookup table for O(1) timer removal.
-    self.__actor_lookup_table__ = dict()
+    self._actor_lookup_table = dict()
     # Singleton instance of the timeout event.
-    self.__timeout__ = TimeoutEvent()
+    self._timeout = TimeoutEvent()
     # Monotonic clock.
-    self.__clock__ = None
+    self._clock = None
 
-  def __cascade_vector__(self, vector, elapsed):
+  def _cascade_vector(self, vector, elapsed):
     '''
     Cascades all the timers inside a vector to a lower bucket.
 
@@ -118,61 +115,61 @@ class TimerService(Actor):
         expires = timer.expires() - elapsed
         timer.expires(expires)
         node = previous_bucket.append(timer)
-        self.__update_lookup_table__(previous_bucket, node)
+        self._update_lookup_table(previous_bucket, node)
 
-  def __cascade_vector_2__(self):
+  def _cascade_vector_2(self):
     '''
     Cascades timers from vector 2 into vector 1.
     '''
-    tick = self.__current_tick__
-    timers = self.__timer_vector2__[0]
+    tick = self._current_tick
+    timers = self._timer_vector2[0]
     for timer in timers:
       expires = timer.expires() - 25600
       timer.expires(expires)
-      self.__vector1_insert__(timer)
+      self._vector1_insert(timer)
     timers.clear()
-    self.__cascade_vector__(self.__timer_vector2__, 25600)
-    index = self.__timer_vector2_index__
+    self._cascade_vector(self._timer_vector2, 25600)
+    index = self._timer_vector2_index
     index = (index + 1) % 256
-    self.__timer_vector2_index__ = index
-    if self.__timer_vector2_index__ == 0:
-      self.__cascade_vector_3__()
+    self._timer_vector2_index = index
+    if self._timer_vector2_index == 0:
+      self._cascade_vector_3()
 
-  def __cascade_vector_3__(self):
+  def _cascade_vector_3(self):
     '''
     Cascades timers from vector 3 into vector 2.
     '''
-    tick = self.__current_tick__
-    timers = self.__timer_vector3__[0]
+    tick = self._current_tick
+    timers = self._timer_vector3[0]
     for timer in timers:
       expires = timer.expires() - 6553600
       timer.expires(expires)
-      self.__vector2_insert__(timer)
+      self._vector2_insert(timer)
     timers.clear()
-    self.__cascade_vector__(self.__timer_vector3__, 6553600)
-    index = self.__timer_vector3_index__
+    self._cascade_vector(self._timer_vector3, 6553600)
+    index = self._timer_vector3_index
     index = (index + 1) % 256
-    self.__timer_vector3_index__ = index
-    if self.__timer_vector3_index__ == 0:
-      self.__cascade_vector_4__()
+    self._timer_vector3_index = index
+    if self._timer_vector3_index == 0:
+      self._cascade_vector_4()
 
-  def __cascade_vector_4__(self):
+  def _cascade_vector_4(self):
     '''
     Cascades timers from vector 4 into vector 3.
     '''
-    tick = self.__current_tick__
-    timers = self.__timer_vector4__[0]
+    tick = self._current_tick
+    timers = self._timer_vector4[0]
     for timer in timers:
       expires = timer.expires() - 1677721600
       timer.expires(expires)
-      self.__vector3_insert__(timer)
+      self._vector3_insert(timer)
     timers.clear()
-    self.__cascade_vector__(self.__timer_vector4__, 1677721600)
-    index = self.__timer_vector4_index__
+    self._cascade_vector(self._timer_vector4, 1677721600)
+    index = self._timer_vector4_index
     index = (index + 1) % 256
-    self.__timer_vector4_index__ = index
+    self._timer_vector4_index = index
 
-  def __create_vector__(self, size):
+  def _create_vector(self, size):
     '''
     Creates a new vector and initializes it to a specified size.
 
@@ -183,7 +180,7 @@ class TimerService(Actor):
       vector.append(dllist())
     return vector
 
-  def __round__(self, timeout):
+  def _round(self, timeout):
     '''
     Rounds a timeout to the nearest multiple of the tick size.
 
@@ -199,64 +196,64 @@ class TimerService(Actor):
     else:
       return timeout + 100 - remainder
 
-  def __schedule__(self, timer):
+  def _schedule(self, timer):
     '''
     Schedules a timer for expiration.
 
     Arguments: timer - The timer to be shceduled.
     '''
-    tick = self.__current_tick__
+    tick = self._current_tick
     timeout = timer.timeout()
-    expires = (tick % 256) * 100 + self.__round__(timeout)
+    expires = (tick % 256) * 100 + self._round(timeout)
     timer.expires(expires)
     if expires <= 25600:
-      self.__vector1_insert__(timer)
+      self._vector1_insert(timer)
     elif expires <= 6553600:
-      self.__vector2_insert__(timer)
+      self._vector2_insert(timer)
     elif expires <= 1677721600:
-      self.__vector3_insert__(timer)
+      self._vector3_insert(timer)
     elif expires <= 429496729600:
-      self.__vector4_insert__(timer)
+      self._vector4_insert(timer)
 
-  def __tick__(self):
+  def _tick(self):
     '''
     Excutes one clock tick.
     '''
-    tick = self.__current_tick__
-    timers = self.__timer_vector1__[tick % 256]
+    tick = self._current_tick
+    timers = self._timer_vector1[tick % 256]
     recurring = list()
     while len(timers) > 0:
       timer = timers.popleft()
-      timer.observer().tell(self.__timeout__)
+      timer.observer().tell(self._timeout)
       if timer.recurring():
         recurring.append(timer)
       else:
-        lookup_table = self.__actor_lookup_table__
+        lookup_table = self._actor_lookup_table
         urn = timer.observer().urn()
         location = lookup_table.get(urn)
         if location:
           del lookup_table[urn]
     for timer in recurring:
-      self.__schedule__(timer)
-    self.__current_tick__ = tick + 1
-    if self.__current_tick__ % 256 == 0:
-      self.__cascade_vector_2__()
+      self._schedule(timer)
+    self._current_tick = tick + 1
+    if self._current_tick % 256 == 0:
+      self._cascade_vector_2()
 
-  def __unschedule__(self, command):
+  def _unschedule(self, command):
     '''
     Unschedules a timer that has previously been scheduled for expiration.
 
     Arguments: command - The StopTimeoutCommand.
     '''
     urn = command.sender().urn()
-    location = self.__actor_lookup_table__.get(urn)
+    location = self._actor_lookup_table.get(urn)
     if location:
-      del self.__actor_lookup_table__[urn]
+      del self._actor_lookup_table[urn]
       vector = location.get('vector')
       node = location.get('node')
       vector.remove(node)
 
-  def __update_lookup_table__(self, vector, node):
+  def _update_lookup_table(self, vector, node):
     '''
     Updates a lookup table used for O(1) timer removal.
     '''
@@ -265,51 +262,51 @@ class TimerService(Actor):
       'vector': vector,
       'node': node
     }
-    self.__actor_lookup_table__.update({urn: location})
+    self._actor_lookup_table.update({urn: location})
 
-  def __vector1_insert__(self, timer):
+  def _vector1_insert(self, timer):
     '''
     Inserts a timer into vector 1.
 
     Arguments: timer - The timer to be inserted.
     '''
-    vector = self.__timer_vector1__
+    vector = self._timer_vector1
     bucket = timer.expires() / 100 - 1
     node = vector[bucket].append(timer)
-    self.__update_lookup_table__(vector[bucket], node)
+    self._update_lookup_table(vector[bucket], node)
 
-  def __vector2_insert__(self, timer):
+  def _vector2_insert(self, timer):
     '''
     Inserts a timer into vector 2.
 
     Arguments: timer - The timer to be inserted.
     '''
-    vector = self.__timer_vector2__
+    vector = self._timer_vector2
     bucket = timer.expires() / 25600 - 1
     node = vector[bucket].append(timer)
-    self.__update_lookup_table__(vector[bucket], node)
+    self._update_lookup_table(vector[bucket], node)
 
-  def __vector3_insert__(self, timer):
+  def _vector3_insert(self, timer):
     '''
     Inserts a timer into vector 3.
 
     Arguments: timer - The timer to be inserted.
     '''
-    vector = self.__timer_vector3__
+    vector = self._timer_vector3
     bucket = timer.expires() / 6553600 - 1
     node = vector[bucket].append(timer)
-    self.__update_lookup_table__(vector[bucket], node)
+    self._update_lookup_table(vector[bucket], node)
 
-  def __vector4_insert__(self, timer):
+  def _vector4_insert(self, timer):
     '''
     Inserts a timer into vector 4.
 
     Arguments: timer - The timer to be inserted.
     '''
-    vector = self.__timer_vector4__
+    vector = self._timer_vector4
     bucket = timer.expires() / 1677721600 - 1
     node = vector[bucket].append(timer)
-    self.__update_lookup_table__(vector[bucket], node)
+    self._update_lookup_table(vector[bucket], node)
 
   def receive(self, message):
     '''
@@ -318,55 +315,55 @@ class TimerService(Actor):
     Arguments: message - The message to be processed.
     '''
     if isinstance(message, ClockEvent):
-      self.__tick__()
+      self._tick()
     elif isinstance(message, ReceiveTimeoutCommand):
       urn = message.sender().urn()
-      if not self.__actor_lookup_table__.has_key(urn):
+      if not self._actor_lookup_table.has_key(urn):
         timeout = message.timeout()
         observer = message.sender()
         recurring = message.recurring()
-        self.__schedule__(TimerService.Timer(observer, timeout, recurring))
+        self._schedule(TimerService.Timer(observer, timeout, recurring))
       else:
-        self.__logger__.warning('Actor %s is requesting too many simultaneous timers.'
-          % urn)
+        self._logger.warning('Actor %s is requesting too many simultaneous timers.'
+                             % urn)
     elif isinstance(message, StopTimeoutCommand):
-      self.__unschedule__(message)
+      self._unschedule(message)
     elif isinstance(message, ServerInitEvent):
-      self.__start__()
+      self._start()
     elif isinstance(message, ServerDestroyEvent):
-      self.__stop__()
+      self._stop()
 
-  def __start__(self):
+  def _start(self):
     '''
     Initialized the TimerService.
     '''
-    self.__clock__ = MonotonicClock(self, TimerService.TICK_SIZE)
-    self.__clock__.start()
+    self._clock = MonotonicClock(self, TimerService.TICK_SIZE)
+    self._clock.start()
 
-  def __stop__(self):
+  def _stop(self):
     '''
     Cleans up after TimerService.
     '''
-    self.__clock__.stop()
+    self._clock.stop()
 
   class Timer(object):
     def __init__(self, observer, timeout, recurring = False):
-      self.__observer__ = observer
-      self.__recurring__ = recurring
-      self.__timeout__ = timeout
-      self.__expires__ = 0
+      self._observer = observer
+      self._recurring = recurring
+      self._timeout = timeout
+      self._expires = 0
 
     def expires(self, *args):
       if len(args) == 0:
-        return self.__expires__
+        return self._expires
       else:
-        self.__expires__ = args[0]
+        self._expires = args[0]
 
     def observer(self):
-      return self.__observer__
+      return self._observer
 
     def timeout(self):
-      return self.__timeout__
+      return self._timeout
 
     def recurring(self):
-      return self.__recurring__
+      return self._recurring

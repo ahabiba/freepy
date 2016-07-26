@@ -31,8 +31,8 @@ import logging
 class Monitor(Actor):
   def __init__(self, *args, **kwargs):
     super(Monitor, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('examples.heartbeat.Monitor')
-    self.__info__ = [{
+    self._logger = logging.getLogger('examples.heartbeat.Monitor')
+    self._info = [{
       'Status': 'Waiting on Heartbeat',
       'Idle-CPU': 100,
       'Session-Count': 0,
@@ -43,30 +43,30 @@ class Monitor(Actor):
 
   def receive(self, message):
     if isinstance(message, EventSocketEvent):
-      self.__info__ = [message.headers()]
+      self._info = [message.headers()]
     elif isinstance(message, HttpRequestEvent):
       request = message.request()
       if request.method == 'GET':          
         # POST Data to Google Spreadsheet via Sheetsu.com. Get the Sheetsu URL from the post_url arg
-        if request.args.get("post_url") and not self.__info__[0].get('Status') and not self.__info__[0].get("Saved"):
+        if request.args.get("post_url") and not self._info[0].get('Status') and not self._info[0].get("Saved"):
           from twisted.web.client import Agent
           from twisted.internet import reactor
           from twisted.web.http_headers import Headers
 
           data_to_post = {
-            "Timestamp": self.__info__[0]['Event-Date-Local'],
-            "CPU": (100-float(self.__info__[0]['Idle-CPU'])),
-            "Sessions": self.__info__[0]['Session-Count'],
-            "Sessions 5-Min": self.__info__[0]['Session-Peak-FiveMin'],
-            "Sessions Peak": self.__info__[0]['Session-Peak-Max'],
+            "Timestamp": self._info[0]['Event-Date-Local'],
+            "CPU": (100 - float(self._info[0]['Idle-CPU'])),
+            "Sessions": self._info[0]['Session-Count'],
+            "Sessions 5-Min": self._info[0]['Session-Peak-FiveMin'],
+            "Sessions Peak": self._info[0]['Session-Peak-Max'],
           }
 
           agent = Agent(reactor)
           def callback(response):
             if response.code == 201:
-              self.__logger__.info('Spreadsheet Data Saved to: %s' % (request.args.get("post_url")[0]))
+              self._logger.info('Spreadsheet Data Saved to: %s' % (request.args.get("post_url")[0]))
           def callback_error_handler(failure):
-            self.__logger__.warn(failure.getErrorMessage())          
+            self._logger.warn(failure.getErrorMessage())
           
           # Execute the request.
           headers = {
@@ -75,7 +75,7 @@ class Monitor(Actor):
           deferred = agent.request('POST', request.args.get("post_url")[0], Headers(headers), StringProducer(json.dumps(data_to_post)))
           deferred.addCallback(callback)
           deferred.addErrback(callback_error_handler)
-          self.__info__[0]['Saved'] = True
+          self._info[0]['Saved'] = True
 
         request.setResponseCode(200)
 
@@ -167,6 +167,6 @@ class Monitor(Actor):
             <pre>%s</pre>
           </body>
         </html>
-        ''' % ((100-float(self.__info__[0]['Idle-CPU'])), self.__info__[0]['Session-Count'], timeseries_js, json.dumps(self.__info__, indent = 2, sort_keys = True))
+        ''' % ((100 - float(self._info[0]['Idle-CPU'])), self._info[0]['Session-Count'], timeseries_js, json.dumps(self._info, indent = 2, sort_keys = True))
         request.write(responseString)
         request.finish()

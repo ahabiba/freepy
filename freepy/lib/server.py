@@ -110,22 +110,22 @@ class Bootstrap(object):
 class Server(Actor):
   def __init__(self, *args, **kwargs):
     super(Server, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('lib.server.Server')
-    self.__observers__ = {}
-    self.__reactor__ = Thread(target = reactor.run, args = (False,))
-    self.__router__ = kwargs.get('router')
-    self.__applications__ = ActorRegistry(
+    self._logger = logging.getLogger('lib.server.Server')
+    self._observers = {}
+    self._reactor = Thread(target = reactor.run, args = (False,))
+    self._router = kwargs.get('router')
+    self._applications = ActorRegistry(
       init_msg = ServerInfoEvent(self),
       destroy_msg = ServerDestroyEvent(),
-      router = self.__router__
+      router = self._router
     )
-    self.__services__ = ActorRegistry(
+    self._services = ActorRegistry(
       init_msg = ServerInitEvent(self, kwargs.get('meta')),
       destroy_msg = ServerDestroyEvent(),
-      router = self.__router__
+      router = self._router
     )
 
-  def __fqn__(self, obj):
+  def _fqn(self, obj):
     if type(obj) == type:
       module = obj.__module__
       klass = obj.__name__
@@ -134,88 +134,88 @@ class Server(Actor):
       klass = obj.__class__.__name__
     return '%s.%s' % (module, klass)
 
-  def __broadcast__(self, fqn, message):
-    recipients = self.__observers__.get(fqn)
+  def _broadcast(self, fqn, message):
+    recipients = self._observers.get(fqn)
     for recipient in recipients:
       recipient.tell(message)
 
-  def __register__(self, message):
-    self.__applications__.register(
+  def _register(self, message):
+    self._applications.register(
       message.fqn(),
       message.singleton()
     )
 
-  def __start_services__(self):
+  def _start_services(self):
     for service in settings.services:
       try:
         target = service.get('target')
-        self.__services__.register(target, singleton = True)
+        self._services.register(target, singleton = True)
         messages = service.get('messages')
         if messages is not None and len(messages) > 0:
-          observer = self.__services__.get(target)
+          observer = self._services.get(target)
           for message in messages:
-            if not self.__observers__.has_key(message):
-              self.__observers__.update({ message: [observer] })
+            if not self._observers.has_key(message):
+              self._observers.update({message: [observer]})
             else:
-              self.__observers__.get(message).append(observer)
+              self._observers.get(message).append(observer)
         if service.has_key('name'):
-          self.__logger__.info('Loaded %s' % service.get('name'))
+          self._logger.info('Loaded %s' % service.get('name'))
       except Exception as e:
         name = service.get('name')
         if name is not None:
-          self.__logger__.error('There was an error loading %s' % name)
-        self.__logger__.exception(e)
-    self.__reactor__.start()
+          self._logger.error('There was an error loading %s' % name)
+        self._logger.exception(e)
+    self._reactor.start()
 
-  def __unicast__(self, message):
+  def _unicast(self, message):
     recipient = None
     target = message.target()
-    if self.__services__.exists(target):
-      recipient = self.__services__.get(target)
-    elif self.__applications__.exists(target):
-      recipient = self.__applications__.get(target)
+    if self._services.exists(target):
+      recipient = self._services.get(target)
+    elif self._applications.exists(target):
+      recipient = self._applications.get(target)
     if recipient is not None:
       recipient.tell(message.message())
 
-  def __stop__(self):
-    self.__applications__.shutdown()
-    self.__services__.shutdown()
-    self.__router__.stop()
+  def _stop(self):
+    self._applications.shutdown()
+    self._services.shutdown()
+    self._router.stop()
     reactor.stop()
 
   def __unwatch__(self, message):
-    fqn = self.__fqn__(message.message())
+    fqn = self._fqn(message.message())
     observer = message.observer()
-    if self.__observers__.has_key(fqn):
-      recipients = self.__observers__.get(fqn)
+    if self._observers.has_key(fqn):
+      recipients = self._observers.get(fqn)
       for idx in xrange(len(recipients)):
         if observer.urn() == recipients[idx].urn():
           del recipients[idx]
 
   def __watch__(self, message):
-    fqn = self.__fqn__(message.message())
+    fqn = self._fqn(message.message())
     observer = message.observer()
-    if not self.__observers__.has_key(fqn):
-      self.__observers__.update({ fqn: [observer] })
+    if not self._observers.has_key(fqn):
+      self._observers.update({fqn: [observer]})
     else:
-      self.__observers__.get(fqn).append(observer)
+      self._observers.get(fqn).append(observer)
 
   def receive(self, message):
-    fqn = self.__fqn__(message)
+    fqn = self._fqn(message)
     if isinstance(message, RouteMessageCommand):
-      self.__unicast__(message)
-    elif self.__observers__.has_key(fqn):
-      self.__broadcast__(fqn, message)
+      self._unicast(message)
+    elif self._observers.has_key(fqn):
+      self._broadcast(fqn, message)
     elif isinstance(message, WatchMessagesCommand):
       self.__watch__(message)
     elif isinstance(message, UnwatchMessagesCommand):
       self.__unwatch__(message)
     elif isinstance(message, RegisterActorCommand):
-      self.__register__(message)
+      self._register(message)
     elif isinstance(message, BootstrapCompleteEvent):
-      self.__start_services__()
+      self._start_services()
     elif isinstance(message, ShutdownEvent):
-      self.__stop__()
+      self._stop()
 
 class BootstrapCompleteEvent(object):
   def __init__(self, *args, **kwargs):
@@ -223,43 +223,40 @@ class BootstrapCompleteEvent(object):
 
 class RegisterActorCommand(object):
   def __init__(self, fqn, singleton = False):
-    self.__fqn__ = fqn
-    self.__singleton__ = singleton
+    self._fqn = fqn
+    self._singleton = singleton
 
   def fqn(self):
-    return self.__fqn__
+    return self._fqn
 
   def singleton(self):
-    return self.__singleton__
+    return self._singleton
 
 class RouteMessageCommand(object):
   def __init__(self, message, target):
-    self.__message__ = message
-    self.__target__ = target
+    self._message = message
+    self._target = target
 
   def message(self):
-    return self.__message__
+    return self._message
 
   def target(self):
-    return self.__target__
+    return self._target
 
 class ServerInfoEvent(object):
   def __init__(self, server):
-    self.__server__ = server
-
-  def server(self):
-    return self.__server__
+    self.server = server
 
 class ServerInitEvent(object):
   def __init__(self, server, meta):
-    self.__server__ = server
-    self.__meta__ = meta
+    self._server = server
+    self._meta = meta
 
   def meta(self):
-    return self.__meta__
+    return self._meta
 
   def server(self):
-    return self.__server__
+    return self._server
 
 class ServerDestroyEvent(object):
   def __init__(self, *args, **kwargs):
@@ -267,25 +264,25 @@ class ServerDestroyEvent(object):
 
 class WatchMessagesCommand(object):
   def __init__(self, observer, message):
-    self.__message__ = message
-    self.__observer__ = observer
+    self._message = message
+    self._observer = observer
 
   def message(self):
-    return self.__message__
+    return self._message
 
   def observer(self):
-    return self.__observer__
+    return self._observer
 
 class UnwatchMessagesCommand(object):
   def __init__(self, observer, message):
-    self.__message__ = message
-    self.__observer__ = observer
+    self._message = message
+    self._observer = observer
 
   def message(self):
-    return self.__message__
+    return self._message
 
   def observer(self):
-    return self.__observer__
+    return self._observer
 
 class ShutdownEvent(object):
   def __init__(self, *args, **kwargs):

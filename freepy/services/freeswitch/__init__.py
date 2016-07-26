@@ -260,7 +260,7 @@ class EventSocketDispatcher(Actor):
     bootstrapper = EventSocketBootstrapper(
       dispatcher = self,
       events = self.__events__,
-      router = self.__router__
+      router = self._router
     )
     bootstrapper.tell(message)
 

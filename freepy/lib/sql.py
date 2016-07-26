@@ -30,25 +30,25 @@ from freepy import settings
 class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):
     super(SQLAlchemyService, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('lib.sql.SQLAlchemyService')
-    self.__engines__ = {}
-    self.__session_makers__ = {}
-    self.__start__()
+    self._logger = logging.getLogger('lib.sql.SQLAlchemyService')
+    self._engines = {}
+    self._session_makers = {}
+    self._start()
 
-  def __fetch_engine__(self, message):
+  def _fetch_engine(self, message):
     message.observer().tell(FetchEngineResponse(
-      self.__engines__.get(message.name())
+      self._engines.get(message.name())
       )
     )
 
-  def __fetch_object_relational_mapper__(self, message):
+  def _fetch_object_relational_mapper(self, message):
     message.observer().tell(
       FetchObjectRelationalMapperResponse(
-        self.__session_makers__.get(message.name())
+        self._session_makers.get(message.name())
       )
     )
 
-  def __start__(self):
+  def _start(self):
     try:
       for database in settings.databases:
         if database.has_key('name') and database.has_key('url'):
@@ -77,68 +77,53 @@ class SQLAlchemyService(Actor):
               pool_size = pool_size,
               pool_timeout = timeout
             )
-          self.__engines__.update({
+          self._engines.update({
             database.get('name'): engine
           })
           orm = database.get('orm')
           if orm is not None and orm == True:
             session_maker = sessionmaker()
             session_maker.configure(bind = engine)
-            self.__session_makers__.update({
+            self._session_makers.update({
               database.get('name'): session_maker
             })
-          self.__logger__.info('Loaded %s database resource' % \
-                               database.get('name'))
+          self._logger.info('Loaded %s database resource' % \
+                            database.get('name'))
     except Exception as e:
-      self.__logger__.critical(
+      self._logger.critical(
         'There was an error initializing the SQL Alchemy service.'
       )
-      self.__logger__.exception(e)
+      self._logger.exception(e)
 
   def __stop__(self):
-    for name, engine in self.__engines__.iteritems():
+    for name, engine in self._engines.iteritems():
       engine.dispose()
 
   def receive(self, message):
     if isinstance(message, FetchEngineRequest):
-      self.__fetch_engine__(message)
+      self._fetch_engine(message)
     elif isinstance(message, FetchObjectRelationalMapperRequest):
-      self.__fetch_object_relational_mapper__(message)
+      self._fetch_object_relational_mapper(message)
     elif isinstance(message, ServerInitEvent):
-      self.__server__ = message.server()
+      self._server = message.server()
 
 class FetchEngineRequest(object):
   def __init__(self, name, observer):
-    self.__name__ = name
-    self.__observer__ = observer
-
-  def name(self):
-    return self.__name__
-
-  def observer(self):
-    return self.__observer__
+    self.name = name
+    self.observer = observer
 
 class FetchEngineResponse(object):
   def __init__(self, engine):
-    self.__engine__ = engine
-
-  def engine(self):
-    return self.__engine__
+    self.engine = engine
 
 class FetchObjectRelationalMapperRequest(object):
   def __init__(self, name, observer):
-    self.__name__ = name
-    self.__observer__ = observer
-
-  def name(self):
-    return self.__name__
-
-  def observer(self):
-    return self.__observer__
+    self.name = name
+    self.observer = observer
 
 class FetchObjectRelationalMapperResponse(object):
   def __init__(self, session_maker):
-    self.__session_maker__ = session_maker
+    self._session_maker = session_maker
 
   def session_maker(self):
-    return self.__session_maker__
+    return self._session_maker

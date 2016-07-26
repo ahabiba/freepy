@@ -103,8 +103,8 @@ class Guard(object):
       raise TypeError('Please specify a valid guard state attribute.\n\
       Possible values are strings.')
     else:
-      function.__fsm_guard_state__ = state
-    function.__fsm_guard__ = True
+      function._fsm_guard_state = state
+    function._fsm_guard = True
     return function
 
 class FiniteStateMachine(object):
@@ -113,17 +113,17 @@ class FiniteStateMachine(object):
   '''
   def __init__(self, *args, **kwargs):
     super(FiniteStateMachine, self).__init__(*args, **kwargs)
-    self.__fsm_transition_table__ = self.__create_lookup_table__()
-    self.__state__ = self.initial_state
+    self._fsm_transition_table = self._create_lookup_table()
+    self._state = self.initial_state
 
-  def __create_lookup_table__(self):
+  def _create_lookup_table(self):
     '''
     Creates a transition lookup table based on the possible transitions.
     '''
-    actions = self.__get_actions__()
-    guards = self.__get_guards__()
-    states = self.__get_states__()
-    state_map = self.__create_state_map__(actions, guards, states)
+    actions = self._get_actions()
+    guards = self._get_guards()
+    states = self._get_states()
+    state_map = self._create_state_map(actions, guards, states)
     # Create the lookup table.
     lookup_table = dict()
     for begin, end in self.transitions:
@@ -141,7 +141,7 @@ class FiniteStateMachine(object):
         transition.update({ 'end_state': state_map.get(end) })
     return lookup_table
 
-  def __create_state_map__(self, actions, guards, states):
+  def _create_state_map(self, actions, guards, states):
     '''
     Creates a map from states to actions and guards.
 
@@ -178,7 +178,7 @@ class FiniteStateMachine(object):
         action declared for on_exit.' % (state_name))
     # Attach guards to their states.
     for guard in guards:
-      state_name = guard.__fsm_guard_state__
+      state_name = guard._fsm_guard_state
       if state_name not in states:
         raise FiniteStateMachineError('A state named %s is not declared \
         in the transitions list.\n Please add %s to the list of possible \
@@ -192,16 +192,16 @@ class FiniteStateMachine(object):
         declared' % (state_name))
     return state_map
 
-  def __get_actions__(self):
+  def _get_actions(self):
     '''
     Returns: All the actions declared for this finite state machine.
     '''
     return filter(
       lambda callable: hasattr(callable, '__fsm_action__'),
-      self.__get_callables__()
+      self._get_callables()
     )
 
-  def __get_callables__(self):
+  def _get_callables(self):
     '''
     Returns: All the methods for this object.
     '''
@@ -213,16 +213,16 @@ class FiniteStateMachine(object):
         actions.append(attr)
     return actions
 
-  def __get_guards__(self):
+  def _get_guards(self):
     '''
     Returns: All the guards declared for this finite state machine.
     '''
     return filter(
-      lambda callable: hasattr(callable, '__fsm_guard__'),
-      self.__get_callables__()
+      lambda callable: hasattr(callable, '_fsm_guard'),
+      self._get_callables()
     )
 
-  def __get_states__(self):
+  def _get_states(self):
     '''
     Returns: The possible states based on the declared transitions.
     '''
@@ -241,7 +241,7 @@ class FiniteStateMachine(object):
     return states
 
   def state(self):
-    return self.__state__
+    return self._state
 
   def transition(self, to = None, event = None):
     '''
@@ -251,15 +251,15 @@ class FiniteStateMachine(object):
                event - The event that caused the state change.
     '''
     # Make sure we are in a good state.
-    transitions = self.__fsm_transition_table__.get(self.__state__)
+    transitions = self._fsm_transition_table.get(self._state)
     if not transitions:
       raise FiniteStateMachineError('The %s state is invalid, or we \
-      have entered a terminal state.' % (self.__state__))
+      have entered a terminal state.' % (self._state))
     # Try to find the desired transition.
     transition = transitions.get(to)
     if not transition:
       raise FiniteStateMachineError('The transition from %s to %s is \
-      invalid.' % (self.__state__, to))
+      invalid.' % (self._state, to))
     # If there are any guards lets execute those now.
     if transition.get('end_state').has_key('guard'):
       allowed = transition.get('end_state').get('guard')()
@@ -268,7 +268,7 @@ class FiniteStateMachine(object):
         or False values.')
       if not allowed:
         raise FiniteStateMachineError('A guard declined the transition \
-        from %s to %s.' % (self.__state__, to))
+        from %s to %s.' % (self._state, to))
     # Try to execute the action associated with leaving the current state.
     if transition.get('beginning_state').has_key('on_exit'):
       if event is not None:
@@ -282,4 +282,4 @@ class FiniteStateMachine(object):
       else:
         transition.get('end_state').get('on_enter')()
     # Enter the new state and we're done.
-    self.__state__ = to
+    self._state = to
