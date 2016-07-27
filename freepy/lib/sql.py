@@ -109,17 +109,32 @@ class SQLAlchemyService(Actor):
 
 class FetchEngineRequest(object):
   def __init__(self, name, observer):
-    self.name = name
-    self.observer = observer
+    self._name = name
+    self._observer = observer
+
+  def name(self):
+    return self._name
+
+  def observer(self):
+    return self._observer
 
 class FetchEngineResponse(object):
   def __init__(self, engine):
-    self.engine = engine
+    self._engine = engine
+
+  def engine(self):
+    return self._engine
 
 class FetchObjectRelationalMapperRequest(object):
   def __init__(self, name, observer):
-    self.name = name
-    self.observer = observer
+    self._name = name
+    self._observer = observer
+
+  def name(self):
+    return self._name
+
+  def observer(self):
+    return self._observer
 
 class FetchObjectRelationalMapperResponse(object):
   def __init__(self, session_maker):

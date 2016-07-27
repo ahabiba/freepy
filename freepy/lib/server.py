@@ -25,47 +25,58 @@ import json
 import logging
 import os
 import signal
+import config
 import sys
 
 from freepy import settings
 
 class Bootstrap(object):
   def __init__(self, *args, **kwargs):
-    self.__logger__ = logging.getLogger('lib.server.Bootstrap')
+    self._logger = logging.getLogger('lib.server.Bootstrap')
     if 'settings' in kwargs:
       settings.update(kwargs.get('settings'))
     else:
       settings.update(__import__('config'))
       settings.update({'application_prefix': 'applications'})
-    self.__metafile__ = kwargs.get('metafile', None)
+    self._metafile = kwargs.get('metafile', None)
 
-  def __create_router__(self, n_threads):
+  def _configure_logging(self):
+    if getattr(config, 'logging_configured', False):
+      return
+
+    logging.basicConfig(
+      filename=settings.logging.get('filename'),
+      format=settings.logging.get('format'),
+      level=settings.logging.get('level')
+    )
+
+  def _create_router(self, n_threads):
     router = MessageRouter(n_threads = n_threads)
     router.start()
     return router
 
-  def __create_server__(self, meta, router):
+  def _create_server(self, meta, router):
     return Server(meta = meta, router = router)
 
-  def __load_meta__(self):
+  def _load_meta(self):
     def load_meta_file(metafile):
       if not os.path.exists(metafile):
-        self.__logger__.warning('The application %s is missing a metafile.' % \
-                                item)
+        self._logger.warning('The application %s is missing a metafile.' % \
+                             item)
         return
       with open(metafile, 'r') as input:
         try:
           return json.loads(input.read())
         except Exception as e:
-          self.__logger__.warning('There was an error reading the ' + \
+          self._logger.warning('There was an error reading the ' + \
                                   'metafile for %s.' % item)
-          self.__logger__.exception(e)
+          self._logger.exception(e)
           return
 
     meta = []
 
-    if self.__metafile__:
-      metafile = os.path.join('.', self.__metafile__)
+    if self._metafile:
+      metafile = os.path.join('.', self._metafile)
       meta.append(load_meta_file(metafile))
     else:
       cwd = os.path.dirname(os.path.realpath(__file__))
@@ -87,20 +98,16 @@ class Bootstrap(object):
     :param wait_for_signal: Block this thread and wait for interrupt signal?
     :return:
     """
-    logging.basicConfig(
-      filename = settings.logging.get('filename'),
-      format = settings.logging.get('format'),
-      level = settings.logging.get('level')
-    )
-    meta = self.__load_meta__()
-    router = self.__create_router__(
+    self._configure_logging()
+    meta = self._load_meta()
+    router = self._create_router(
       n_threads = settings.concurrency.get('threads').get('pool_size')
     )
-    server = self.__create_server__(meta, router)
+    server = self._create_server(meta, router)
     server.tell(BootstrapCompleteEvent())
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
-      self.__logger__.critical('FreePy is now shutting down!!!')
+      self._logger.critical('FreePy is now shutting down!!!')
       server.tell(ShutdownEvent())
     signal.signal(signal.SIGINT, signal_handler)
     if not wait_for_signal:
@@ -245,7 +252,10 @@ class RouteMessageCommand(object):
 
 class ServerInfoEvent(object):
   def __init__(self, server):
-    self.server = server
+    self._server = server
+
+  def server(self):
+    return self._server
 
 class ServerInitEvent(object):
   def __init__(self, server, meta):
