@@ -42,7 +42,10 @@ class ReceiveTimeoutCommand(object):
 
 class StopTimeoutCommand(object):
   def __init__(self, sender):
-    self.sender = sender
+    self._sender = sender
+
+  def sender(self):
+    return self._sender
 
 class ClockEvent(object):
   pass
