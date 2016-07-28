@@ -36,23 +36,23 @@ class HttpDispatcher(Actor):
     super(HttpDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('services.http.HttpDispatcher')
 
-  def __dispatch__(self, message):
+  def _dispatch(self, message):
     for rule in self.__rules__:
       target = rule.get('target')
       urls = rule.get('urls')
       for url in urls:
         result = re.match(url, message.path)
         if result is not None:
-          qs = self.__parse_qs__(message)
+          qs = self._parse_qs(message)
           event = HttpRequestEvent(result.groups(),
                                    result.groupdict(),
                                    qs,
                                    message)
           self.__server__.tell(RouteMessageCommand(event, target))
           return
-    deferred = reactor.callFromThread(self.__dispatch_not_found__, message)
+    deferred = reactor.callFromThread(self._dispatch_not_found, message)
 
-  def __dispatch_not_found__(self, message):
+  def _dispatch_not_found(self, message):
     message.setHeader('Server', 'FreePy/2.0')
     message.setHeader('Content-Type', 'text/plain')
     message.setResponseCode(404)
@@ -67,7 +67,7 @@ class HttpDispatcher(Actor):
       message.write('Not Found')
     message.finish()
 
-  def __initialize__(self, message):
+  def _initialize(self, message):
     self.__server__ = message.server()
     self.__rules__ = []
     for item in message.meta():
@@ -89,16 +89,16 @@ class HttpDispatcher(Actor):
             if name is not None:
               self.__logger__.error('There was an error loading %s' % name)
             self.__logger__.exception(e)
-    self.__start__()
+    self._start()
 
-  def __parse_qs__(self, message):
+  def _parse_qs(self, message):
     url = urlparse(message.uri)
     if len(url.query) > 0:
       return parse_qs(url.query)
     else:
       return HttpDispatcher.empty_qs
 
-  def __start__(self):
+  def _start(self):
     proxy = HttpProxy(self)
     reactor.listenTCP(
       settings.http.get('port'),
@@ -107,9 +107,9 @@ class HttpDispatcher(Actor):
 
   def receive(self, message):
     if isinstance(message, Request):
-      self.__dispatch__(message)
+      self._dispatch(message)
     elif isinstance(message, ServerInitEvent):
-      self.__initialize__(message)
+      self._initialize(message)
 
 class HttpProxy(Resource):
   isLeaf = True
@@ -137,19 +137,19 @@ class HttpProxy(Resource):
 
 class HttpRequestEvent(object):
   def __init__(self, params, params_dict, qs, request):
-    self.__params__ = params
-    self.__params_dict__ = params_dict
-    self.__request__ = request
-    self.__qs__ = qs
+    self._params = params
+    self._params_dict = params_dict
+    self._request = request
+    self._qs = qs
 
   def params(self):
-    return self.__params__
+    return self._params
 
   def params_dict(self):
-    return self.__params_dict__
+    return self._params_dict
 
   def request(self):
-    return self.__request__
+    return self._request
 
   def query_string(self):
-    return self.__qs__
+    return self._qs

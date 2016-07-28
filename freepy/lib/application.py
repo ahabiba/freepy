@@ -140,10 +140,10 @@ class MessageRouter(object):
     self.worker = None
 
 class MessageRouterWorker(Thread):
-  def __init__(self, *args, **kwargs):
+  def __init__(self, logger, queue, *args, **kwargs):
     super(MessageRouterWorker, self).__init__()
-    self._logger = args[0]
-    self._queue = args[1]
+    self._logger = logger
+    self._queue = queue
 
   def run(self):
     while True:

@@ -51,21 +51,21 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
 
   def __init__(self, *args, **kwargs):
     super(EventSocketBootstrapper, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger(
+    self._logger = logging.getLogger(
       'services.freeswitch.EventSocketBootstrapper'
     )
-    self.__dispatcher__ = kwargs.get('dispatcher')
-    self.__events__ = kwargs.get('events')
-    self.__password__ = settings.freeswitch.get('password')
+    self._dispatcher = kwargs.get('dispatcher')
+    self._events = kwargs.get('events')
+    self._password = settings.freeswitch.get('password')
 
   @Action(state = 'authenticating')
-  def __authenticate__(self):
-    self.__dispatcher__.tell(EventSocketLockCommand(self))
-    self.__dispatcher__.tell(AuthCommand(self, password = self.__password__))
+  def _authenticate(self):
+    self._dispatcher.tell(EventSocketLockCommand(self))
+    self._dispatcher.tell(AuthCommand(self, password = self._password))
 
   @Action(state = 'bootstrapping')
-  def __bootstrap__(self):
-    unsorted = self.__events__
+  def _bootstrap(self):
+    unsorted = self._events
     sorted = ['BACKGROUND_JOB']
     for event in unsorted:
       if not event == 'CUSTOM' and event.find('::') == -1:
@@ -75,11 +75,11 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
     for event in unsorted:
       if event.find('::') > -1:
         sorted.append(event)
-    self.__dispatcher__.tell(EventsCommand(self, events = sorted))
+    self._dispatcher.tell(EventsCommand(self, events = sorted))
 
   @Action(state = 'done')
-  def __finish__(self):
-    self.__dispatcher__.tell(EventSocketUnlockCommand())
+  def _finish(self):
+    self._dispatcher.tell(EventSocketUnlockCommand())
 
   def receive(self, message):
     if isinstance(message, EventSocketEvent):
@@ -99,69 +99,69 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
 
 class EventSocketClient(Protocol):
   def __init__(self, observer):
-    self.__logger__ = logging.getLogger(
+    self._logger = logging.getLogger(
       'services.freeswitch.EventSocketClient'
     )
-    self.__buffer__ = None
-    self.__host__ = None
-    self.__observer__ = observer
-    self.__peer__ = None
+    self._buffer = None
+    self._host = None
+    self._observer = observer
+    self._peer = None
 
-  def __parse__(self):
+  def _parse(self):
     # Make sure we have enough data to process the event.
-    buffer_contents = self.__buffer__.getvalue()
+    buffer_contents = self._buffer.getvalue()
     if len(buffer_contents) == 0 or not buffer_contents.find('\n\n'):
       return None
     else:
       # Parse the event for processing.
-      self.__buffer__.seek(0)
+      self._buffer.seek(0)
       body = None
-      headers = self.__parse_headers__()
+      headers = self._parse_headers()
       length = headers.get('Content-Length')
       if length:
         length = int(length)
         # Remove the Content-Length header.
         del headers['Content-Length']
         # Make sure we have enough data to process the body.
-        offset = self.__buffer__.tell()
-        self.__buffer__.seek(0, SEEK_END)
-        end = self.__buffer__.tell()
+        offset = self._buffer.tell()
+        self._buffer.seek(0, SEEK_END)
+        end = self._buffer.tell()
         remaining = end - offset
         # Handle the event body.
         if length <= remaining:
-          self.__buffer__.seek(offset)
+          self._buffer.seek(offset)
           type = headers.get('Content-Type')
           if type and type == 'text/event-plain':
-            headers.update(self.__parse_headers__())
+            headers.update(self._parse_headers())
             length = headers.get('Content-Length')
             if length:
               length = int(length)
               del headers['Content-Length']
-              body = self.__buffer__.read(length)
+              body = self._buffer.read(length)
           else:
-            body = self.__buffer__.read(length)
+            body = self._buffer.read(length)
         else:
           return None
       # Reclaim resources.
-      offset = self.__buffer__.tell()
-      self.__buffer__.seek(0, SEEK_END)
-      end = self.__buffer__.tell()
+      offset = self._buffer.tell()
+      self._buffer.seek(0, SEEK_END)
+      end = self._buffer.tell()
       remaining = end - offset
       if remaining == 0:
-        self.__buffer__.seek(0)
-        self.__buffer__.truncate(0)
+        self._buffer.seek(0)
+        self._buffer.truncate(0)
       else:
-        self.__buffer__.seek(offset)
-        data = self.__buffer__.read(remaining)
-        self.__buffer__.seek(0)
-        self.__buffer__.write(data)
-        self.__buffer__.truncate(remaining)
+        self._buffer.seek(offset)
+        data = self._buffer.read(remaining)
+        self._buffer.seek(0)
+        self._buffer.write(data)
+        self._buffer.truncate(remaining)
       return EventSocketEvent(headers, body)
 
-  def __parse_headers__(self):
+  def _parse_headers(self):
     headers = dict()
     while True:
-      line = self.__parse_line__()
+      line = self._parse_line()
       if line == '':
         break
       else:
@@ -176,18 +176,18 @@ class EventSocketClient(Protocol):
           headers.update({name: None})
     return headers
 
-  def __parse_line__(self, stride = 64):
+  def _parse_line(self, stride = 64):
     line = list()
     while True:
-      chunk = self.__buffer__.read(stride)
+      chunk = self._buffer.read(stride)
       end = chunk.find('\n')
       if end == -1:
         line.append(chunk)
       else:
         line.append(chunk[:end])
-        offset = self.__buffer__.tell()
+        offset = self._buffer.tell()
         left_over = len(chunk[end + 1:])
-        self.__buffer__.seek(offset - left_over)
+        self._buffer.seek(offset - left_over)
         break
       if len(chunk) < stride:
         break
@@ -196,40 +196,40 @@ class EventSocketClient(Protocol):
   def connectionLost(self, reason):
     message = 'A connection to the FreeSWITCH instance '
     message += 'located @ %s:%i has been lost due to the ' % \
-               (self.__peer__.host, self.__peer__.port)
+               (self._peer.host, self._peer.port)
     message += 'following reason.\n%s' % reason
-    self.__logger__.critical(message)
-    if self.__buffer__:
-      self.__buffer__.close()
-    self.__buffer__ = None
-    self.__host__ = None
-    self.__peer__ = None
+    self._logger.critical(message)
+    if self._buffer:
+      self._buffer.close()
+    self._buffer = None
+    self._host = None
+    self._peer = None
 
   def connectionMade(self):
-    self.__buffer__ = StringIO()
-    self.__host__ = self.transport.getHost()
-    self.__peer__ = self.transport.getPeer()
-    self.__observer__.start(self)
+    self._buffer = StringIO()
+    self._host = self.transport.getHost()
+    self._peer = self.transport.getPeer()
+    self._observer.start(self)
 
   def dataReceived(self, data):
-    if self.__logger__.isEnabledFor(logging.DEBUG):
+    if self._logger.isEnabledFor(logging.DEBUG):
       message = 'Message From %s:%i\n%s' % \
-                (self.__peer__.host, self.__peer__.port, data)
-      self.__logger__.debug(message)
-    self.__buffer__.write(data)
+                (self._peer.host, self._peer.port, data)
+      self._logger.debug(message)
+    self._buffer.write(data)
     while True:
-      event = self.__parse__()
+      event = self._parse()
       if event:
-        self.__observer__.consume(event)
+        self._observer.consume(event)
       else:
         break
 
   def send(self, command):
     serialized_command = str(command)
-    if self.__logger__.isEnabledFor(logging.DEBUG):
+    if self._logger.isEnabledFor(logging.DEBUG):
       message = 'The following message will be sent to %s:%i.\n%s' % \
-                (self.__peer__.host, self.__peer__.port, serialized_command)
-      self.__logger__.debug(message)
+                (self._peer.host, self._peer.port, serialized_command)
+      self._logger.debug(message)
     self.transport.write(serialized_command)
 
 class EventSocketClientFactory(ReconnectingClientFactory):
@@ -256,7 +256,7 @@ class EventSocketDispatcher(Actor):
     self.__transactions__ = {}
     self.__watches__ = []
 
-  def __dispatch_auth__(self, message):
+  def _dispatch_auth(self, message):
     bootstrapper = EventSocketBootstrapper(
       dispatcher = self,
       events = self.__events__,
@@ -264,7 +264,7 @@ class EventSocketDispatcher(Actor):
     )
     bootstrapper.tell(message)
 
-  def __dispatch_command__(self, message):
+  def _dispatch_command(self, message):
     observer = message.sender()
     if isinstance(message, BackgroundCommand):
       uuid = message.job_uuid()
@@ -272,7 +272,7 @@ class EventSocketDispatcher(Actor):
       self.__transactions__.update({ uuid: observer })
     self.__client__.send(message)
 
-  def __dispatch_event__(self, message):
+  def _dispatch_event(self, message):
     # Handle locked dispatcher events.
     if self.__owner__ is not None:
       self.__owner__.tell(message)
@@ -327,7 +327,7 @@ class EventSocketDispatcher(Actor):
         if target_value is not None and header_value == target_value:
           observer.tell(message)
 
-  def __initialize__(self, message):
+  def _initialize(self, message):
     if isinstance(message, EventSocketProxyInitEvent):
       self.__client__ = message.client()
     else:
@@ -360,12 +360,12 @@ class EventSocketDispatcher(Actor):
                 self.__logger__.error('There was an error loading %s' % name)
               self.__logger__.exception(e)
       self.__events__ = set(self.__events__)
-      self.__start__()
+      self._start()
 
-  def __lock__(self, message):
+  def _lock(self, message):
     self.__owner__ = message.owner()
 
-  def __start__(self):
+  def _start(self):
     proxy = EventSocketProxy(self)
     reactor.connectTCP(
       settings.freeswitch.get('address'),
@@ -373,10 +373,10 @@ class EventSocketDispatcher(Actor):
       EventSocketClientFactory(proxy)
     )
 
-  def __unlock__(self, message):
+  def _unlock(self, message):
     self.__owner__ = None
 
-  def __unwatch__(self, message):
+  def _unwatch(self, message):
     for idx in xrange(len(self.__watches__)):
       watch = self.__watches__[idx]
       if message.observer().urn() == \
@@ -387,79 +387,79 @@ class EventSocketDispatcher(Actor):
           del self.__watches__[idx]
           break
 
-  def __watch__(self, message):
+  def _watch(self, message):
     self.__watches__.append(message)
 
   def receive(self, message):
     if isinstance(message, EventSocketCommand):
-      self.__dispatch_command__(message)
+      self._dispatch_command(message)
     elif isinstance(message, EventSocketEvent):
       content_type = message.headers().get('Content-Type')
       if content_type == 'auth/request':
-        self.__dispatch_auth__(message)
+        self._dispatch_auth(message)
       else:
-        self.__dispatch_event__(message)
+        self._dispatch_event(message)
     elif isinstance(message, EventSocketWatchCommand):
-      self.__watch__(message)
+      self._watch(message)
     elif isinstance(message, EventSocketUnwatchCommand):
-      self.__unwatch__(message)
+      self._unwatch(message)
     elif isinstance(message, EventSocketLockCommand):
-      self.__lock__(message)
+      self._lock(message)
     elif isinstance(message, EventSocketUnlockCommand):
-      self.__unlock__(message)
+      self._unlock(message)
     elif isinstance(message, EventSocketProxyInitEvent):
-      self.__initialize__(message)
+      self._initialize(message)
     elif isinstance(message, ServerInitEvent):
-      self.__initialize__(message)
+      self._initialize(message)
 
 class EventSocketProxy(object):
   def __init__(self, dispatcher):
-    self.__dispatcher__ = dispatcher
+    self._dispatcher = dispatcher
 
   def consume(self, event):
-    self.__dispatcher__.tell(event)
+    self._dispatcher.tell(event)
 
   def start(self, client):
-    self.__dispatcher__.tell(EventSocketProxyInitEvent(client))
+    self._dispatcher.tell(EventSocketProxyInitEvent(client))
 
 class EventSocketEvent(object):
   def __init__(self, headers, body = None):
-    self.__body__ = body
-    self.__headers__ = headers
+    self._body = body
+    self._headers = headers
 
   def body(self):
-    return self.__body__
+    return self._body
 
   def headers(self):
-    return self.__headers__
+    return self._headers
 
 class EventSocketQueryRequest(object):
   def __init__(self, observer):
-    self.__observer__ = observer
+    self._observer = observer
 
   def observer(self):
-    return self.__observer__
+    return self._observer
 
 class EventSocketQueryResponse(object):
   def __init__(self, events):
-    self.__events__ = events
+    self._events = events
 
   def events(self):
-    return self.__events__
+    return self._events
 
 class EventSocketProxyInitEvent(object):
   def __init__(self, client):
-    self.__client__ = client
+    self._client = client
 
   def client(self):
-    return self.__client__
+    return self._client
 
 class EventSocketLockCommand(object):
   def __init__(self, owner):
-    self.__owner__ = owner
+    self._owner = owner
 
   def owner(self):
-    return self.__owner__
+    return self._owner
 
 class EventSocketUnlockCommand(object):
   def __init__(self, *args, **kwargs):
@@ -469,22 +469,22 @@ class BaseEventSocketWatchCommand(object):
   def __init__(self, observer, header_name,
                header_pattern = None,
                header_value = None):
-    self.__header_name__ = header_name
-    self.__header_pattern__ = header_pattern
-    self.__header_value__ = header_value
-    self.__observer__ = observer
+    self._header_name = header_name
+    self._header_pattern = header_pattern
+    self._header_value = header_value
+    self._observer = observer
 
   def header_name(self):
-    return self.__header_name__
+    return self._header_name
 
   def header_pattern(self):
-    return self.__header_pattern__
+    return self._header_pattern
 
   def header_value(self):
-    return self.__header_value__
+    return self._header_value
 
   def observer(self):
-    return self.__observer__
+    return self._observer
 
 class EventSocketWatchCommand(BaseEventSocketWatchCommand):
   def __init__(self, *args, **kwargs):

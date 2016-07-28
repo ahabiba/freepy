@@ -190,7 +190,7 @@ class Server(Actor):
     self._router.stop()
     reactor.stop()
 
-  def __unwatch__(self, message):
+  def _unwatch(self, message):
     fqn = self._fqn(message.message())
     observer = message.observer()
     if self._observers.has_key(fqn):
@@ -199,7 +199,7 @@ class Server(Actor):
         if observer.urn() == recipients[idx].urn():
           del recipients[idx]
 
-  def __watch__(self, message):
+  def _watch(self, message):
     fqn = self._fqn(message.message())
     observer = message.observer()
     if not self._observers.has_key(fqn):
@@ -214,15 +214,19 @@ class Server(Actor):
     elif self._observers.has_key(fqn):
       self._broadcast(fqn, message)
     elif isinstance(message, WatchMessagesCommand):
-      self.__watch__(message)
+      self._watch(message)
     elif isinstance(message, UnwatchMessagesCommand):
-      self.__unwatch__(message)
+      self._unwatch(message)
     elif isinstance(message, RegisterActorCommand):
       self._register(message)
     elif isinstance(message, BootstrapCompleteEvent):
       self._start_services()
     elif isinstance(message, ShutdownEvent):
       self._stop()
+
+  @property
+  def router(self):
+    return self._router
 
 class BootstrapCompleteEvent(object):
   def __init__(self, *args, **kwargs):
