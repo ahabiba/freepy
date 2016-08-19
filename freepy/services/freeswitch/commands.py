@@ -178,8 +178,8 @@ class BroadcastCommand(UUIDCommand):
     self._app_name = kwargs.get('app_name')
     self._app_args = kwargs.get('app_args')
     if self._path and self._app_name:
-      raise RuntimeError('A broadcast EventSocketCommand can specify either a path \
-      or an app_name but not both.')
+      raise RuntimeError('A broadcast EventSocketCommand can specify either a path ' \
+                         'or an app_name but not both.')
 
   def leg(self):
     return self._leg
@@ -398,8 +398,8 @@ class DualTransferCommand(UUIDCommand):
     self.__context_a__ = kwargs.get('context_a')
     self.__context_b__ = kwargs.get('context_b')
     if not self.__extension_a__ and not self.__extension_b__:
-      raise RuntimeError('A dual transfer EventSocketCommand requires the extension_a \
-        and extension_b parameters to be provided.')
+      raise RuntimeError('A dual transfer EventSocketCommand requires the extension_a' \
+                         'and extension_b parameters to be provided.')
 
   def extension_a(self):
     return self.__extension_a__
@@ -977,8 +977,8 @@ class OriginateCommand(BackgroundCommand):
     if not isinstance(self._options, list):
       raise TypeError('The options parameter must be a list type.')
     if self._extension and self._app_name:
-      raise RuntimeError('An originate EventSocketCommand can specify either an \
-      extension or an app_name but not both.')
+      raise RuntimeError('An originate EventSocketCommand can specify either an '\
+                         'extension or an app_name but not both.')
 
   def app_name(self):
     return self._app_name
@@ -1218,6 +1218,41 @@ class SendInfoCommand(UUIDCommand):
     return 'bgapi uuid_send_info %s\nJob-UUID: %s\n\n' % (self._uuid,
       self._job_uuid)
 
+class SendMessageCommand(BackgroundCommand):
+  '''
+  Send a SIP message.
+
+  Arguments: sender - The freepy actor sending this EventSocketCommand.
+             host - The host to which we will send the message.
+             user - The user to which we will send the message.
+             profile - The profile to use for sending the message.
+             content_type - The type of content being sent.
+             body - The message body.
+
+  '''
+  def __init__(self, *args, **kwargs):
+    super(SendMessageCommand, self).__init__(*args, **kwargs)
+    self.__host__ = kwargs.get('host')
+    self.__user__ = kwargs.get('user')
+    self.__profile__ = kwargs.get('profile')
+    self.__content_type__ = kwargs.get('content_type')
+    self.__body__ = kwargs.get('body')
+
+  def __str__(self):
+    return 'sendevent SEND_MESSAGE\n' \
+           'profile: %s\n' \
+           'content-length: %i\n' \
+           'content-type: %s\n' \
+           'user: %s\n' \
+           'host: %s\n' \
+           '\n%s\n' % (
+            self.__profile__,
+            len(self.__body__),
+            self.__content_type__,
+            self.__user__,
+            self.__host__,
+            self.__body__)
+
 class SetAudioLevelCommand(UUIDCommand):
   '''
   Adjust the audio levels on a channel or mute (read/write) via a media bug.
@@ -1277,8 +1312,8 @@ class SetGlobalVariableCommand(BackgroundCommand):
     self._name = kwargs.get('name')
     self._value = kwargs.get('value')
     if not self._name or not self._value:
-      raise RuntimeError('The set global variable EventSocketCommand requires both name \
-      and value parameters.')
+      raise RuntimeError('The set global variable EventSocketCommand requires both name ' \
+                         'and value parameters.')
 
   def name(self):
     return self._name
@@ -1393,8 +1428,8 @@ class SetVariableCommand(UUIDCommand):
     self.__name__ = kwargs.get('name')
     self.__value__ = kwargs.get('value')
     if not self.__name__ or not self.__value__:
-      raise RuntimeError('The set variable EventSocketCommand requires both name \
-      and value parameters.')
+      raise RuntimeError('The set variable EventSocketCommand requires both name ' \
+                         'and value parameters.')
 
   def name(self):
     return self.__name__
@@ -1794,8 +1829,8 @@ class UnsetVariableCommand(UUIDCommand):
     super(UnsetVariableCommand, self).__init__(*args, **kwargs)
     self._name = kwargs.get('name')
     if not self._name:
-      raise RuntimeError('The unset variable commands requires the name \
-      parameter.')
+      raise RuntimeError('The unset variable commands requires the name ' \
+                         'parameter.')
 
   def name(self):
     return self._name
