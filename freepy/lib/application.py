@@ -65,8 +65,7 @@ class ActorRegistry(object):
       klass = self._classes.get(fqn)
       try:
         actor = klass(router = self._router)
-        if self._logger.isEnabledFor(logging.DEBUG):
-          self._logger.info('Started %s' % fqn)
+        self._logger.info('Started %s' % fqn)
         if not self._init_msg == None:
           actor.tell(self._init_msg)
       except Exception as e:
@@ -101,8 +100,7 @@ class ActorRegistry(object):
     else:
       try:
         actor = klass(router = self._router)
-        if self._logger.isEnabledFor(logging.DEBUG):
-          self._logger.info('Started %s' % fqn)
+        self._logger.info('Started %s' % fqn)
         self._actors.update({fqn: actor})
         if not self._init_msg == None:
           try:
@@ -154,7 +152,6 @@ class MessageRouterWorker(Thread):
       try:
         recipient.receive(message)
       except Exception as e:
-        if self._logger.isEnabledFor(logging.DEBUG):
-          self._logger.exception(e)
+        self._logger.exception(e)
       finally:
         recipient.unlock()

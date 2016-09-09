@@ -212,10 +212,10 @@ class EventSocketClient(Protocol):
     self._observer.start(self)
 
   def dataReceived(self, data):
-    if self._logger.isEnabledFor(logging.DEBUG):
-      message = 'Message From %s:%i\n%s' % \
-                (self._peer.host, self._peer.port, data)
-      self._logger.debug(message)
+    message = 'Message From %s:%i\n%s' % \
+              (self._peer.host, self._peer.port, data)
+    self._logger.debug(message)
+
     self._buffer.write(data)
     while True:
       event = self._parse()
@@ -226,10 +226,9 @@ class EventSocketClient(Protocol):
 
   def send(self, command):
     serialized_command = str(command)
-    if self._logger.isEnabledFor(logging.DEBUG):
-      message = 'The following message will be sent to %s:%i.\n%s' % \
-                (self._peer.host, self._peer.port, serialized_command)
-      self._logger.debug(message)
+    message = 'The following message will be sent to %s:%i.\n%s' % \
+              (self._peer.host, self._peer.port, serialized_command)
+    self._logger.debug(message)
     self.transport.write(serialized_command)
 
 class EventSocketClientFactory(ReconnectingClientFactory):
