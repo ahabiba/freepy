@@ -73,7 +73,7 @@ class SmtpMessage(object):
     self.lines.append('') # add a trailing newline
     messageData = '\n'.join(self.lines)
     self._event.set_content(messageData)
-    return defer.Deferred()
+    return defer.succeed(None)
 
   def connectionLost(self):
     del(self.lines)
@@ -118,7 +118,6 @@ class SmtpReceiveEvent(object):
   def __init__(self):
     self._content = None
     self._ready = False
-    pass
 
   def register_callback():
     # idea: if not ready,
