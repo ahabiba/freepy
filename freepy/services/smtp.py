@@ -34,26 +34,23 @@ from freepy import settings
 
 
 class SmtpDispatcher(Actor):
-  empty_qs = dict()
-
   def __init__(self, *args, **kwargs):
     super(SmtpDispatcher, self).__init__(*args, **kwargs)
     self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
 
   def _dispatch(self, message):
     event = message
-    self.__server__.tell(RouteMessageCommand(event, target))
+    #self.__server__.tell(RouteMessageCommand(event, target))
     return
 
   def _initialize(self, message):
     # something needs to happen here, but I don't know what.
     # will figure it out later
-
-    #self.__server__ = message.server()
+    self.__server__ = message.server()
     self._start()
 
   def _start(self):
-    reactor.listenTCP(settings.smtp.get('port'), SmtpFactory())
+    reactor.listenTCP(settings.smtp.get('port'), SmtpFactory(self))
 
   def receive(self, message):
     if isinstance(message, SmtpReceiveEvent):
@@ -65,6 +62,7 @@ class SmtpMessage(object):
   implements(smtp.IMessage)
 
   def __init__(self, event):
+    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
     self._event = event
     self.lines = []
 
@@ -75,6 +73,7 @@ class SmtpMessage(object):
     self.lines.append('') # add a trailing newline
     messageData = '\n'.join(self.lines)
     self._event.set_content(messageData)
+
     return defer.succeed(None)
 
   def connectionLost(self):
@@ -84,6 +83,7 @@ class SmtpMessageDelivery(object):
   implements(smtp.IMessageDelivery)
 
   def __init__(self, event):
+    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
     self._event = event
 
   def receivedHeader(self, helo, origin, recipients):
@@ -115,25 +115,27 @@ class SmtpFactory(protocol.ServerFactory):
 
     return smtpProtocol
 
-class SmtpReceiveEvent(object):
+class SmtpReceiveEvent():
   def __init__(self):
+    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
+
     self._content = None
     self._ready = False
 
-  def register_callback():
+  def register_callback(self):
     # idea: if not ready,
     # register a callback to be called with content on ready
     pass
 
-  def set_content(content):
+  def set_content(self, content):
     self._content = content
     self.set_ready()
 
-  def get_content():
+  def get_content(self):
     return self._content
 
-  def set_ready():
+  def set_ready(self):
     self._ready = True
 
-  def get_ready():
+  def get_ready(self):
     return self._ready
