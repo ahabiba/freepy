@@ -59,7 +59,7 @@ http = {
 # The SMTP server configuration.
 # WIP
 smtp = {
-  'port': 2525,
+  'port': 25,
   'pages': {
     # '404': '/path/to/404.html'
   }

@@ -48,6 +48,8 @@ class SmtpDispatcher(Actor):
   def _initialize(self, message):
     # something needs to happen here, but I don't know what.
     # will figure it out later
+
+    #self.__server__ = message.server()
     self._start()
 
   def _start(self):
@@ -83,7 +85,6 @@ class SmtpMessageDelivery(object):
 
   def __init__(self, event):
     self._event = event
-    pass
 
   def receivedHeader(self, helo, origin, recipients):
     myHostname, clientIP = helo
