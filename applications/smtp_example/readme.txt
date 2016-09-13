@@ -1,3 +1,6 @@
+enable this example by creating a file "metafile.json"
+with the following content (adjust whitelist values):
+
 {
   "name": "smtp_example",
   "smtp": {
