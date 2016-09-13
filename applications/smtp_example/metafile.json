@@ -4,6 +4,12 @@
     "rule": {
       "singleton": true,
       "target": "smtp_example.smtp.HelloSmtpWorld"
-    }
+    },
+    "whitelist": [
+      {
+        "ip": "127.0.0.1",
+        "system_address": "from@whatever.com"
+      }
+    ]
   }
 }

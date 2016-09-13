@@ -45,8 +45,9 @@ class SmtpDispatcher(Actor):
     for item in message.meta():
       if item and item.has_key('smtp'):
         smtp = item.get('smtp')
+        self._whitelist = smtp.get('whitelist')
+
         rule = smtp.get('rule')
-        self.__logger__.debug(rule)
         try:
           if rule is not None and len(rule) > 0:
             singleton = rule.get('singleton')
@@ -55,6 +56,7 @@ class SmtpDispatcher(Actor):
             self.__logger__.info("Registered {}".format(self._target))
         except Exception as e:
           self.__logger__.exception(e)
+
     self._start()
 
   def _start(self):
@@ -92,6 +94,7 @@ class SmtpMessage(object):
 
   def format_data(self):
     self.received = self.lines[0]
+    
     header_lines = []
     body_lines = []
     end_headers = False
@@ -122,6 +125,8 @@ class SmtpMessageDelivery(object):
 
   def __init__(self, dispatcher):
     self._dispatcher = dispatcher
+    self._whitelist = dispatcher._whitelist
+    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
 
   def receivedHeader(self, helo, origin, recipients):
     myHostname, clientIP = helo
@@ -134,9 +139,15 @@ class SmtpMessageDelivery(object):
     return lambda: SmtpMessage(self._dispatcher)
 
   def validateFrom(self, helo, originAddress):
-    # whitelist here. if not on whitelist,
-    # raise smtp.SMTPBadSender
-    return originAddress
+    myHostname, clientIP = helo
+
+    for whitelist_item in self._whitelist:
+      if clientIP == whitelist_item.get('ip'):
+        if str(originAddress) == whitelist_item.get('system_address'):
+          return originAddress
+
+    self.__logger__.error("Sender not whitelisted")
+    raise smtp.SMTPBadSender()
 
 
 class SmtpFactory(protocol.ServerFactory):
