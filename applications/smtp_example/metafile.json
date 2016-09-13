@@ -1,0 +1,9 @@
+{
+  "name": "smtp_example",
+  "smtp": {
+    "rule": {
+      "singleton": true,
+      "target": "smtp_example.smtp.HelloSmtpWorld"
+    }
+  }
+}

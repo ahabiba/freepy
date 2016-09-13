@@ -20,13 +20,11 @@
 from freepy.lib.application import Actor
 from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
-from twisted.internet import protocol, reactor, defer
-from twisted.web.resource import Resource
-from twisted.web.server import Request, Site
 
-from twisted.mail import smtp
 from zope.interface import implements
-import os
+
+from twisted.internet import protocol, reactor, defer
+from twisted.mail import smtp
 from email.Header import Header
 
 import logging
@@ -39,14 +37,24 @@ class SmtpDispatcher(Actor):
     self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
 
   def _dispatch(self, message):
-    event = message
-    #self.__server__.tell(RouteMessageCommand(event, target))
+    self.__server__.tell(RouteMessageCommand(message, self._target))
     return
 
   def _initialize(self, message):
-    # something needs to happen here, but I don't know what.
-    # will figure it out later
     self.__server__ = message.server()
+    for item in message.meta():
+      if item and item.has_key('smtp'):
+        smtp = item.get('smtp')
+        rule = smtp.get('rule')
+        self.__logger__.debug(rule)
+        try:
+          if rule is not None and len(rule) > 0:
+            singleton = rule.get('singleton')
+            self._target = rule.get('target')
+            self.__server__.tell(RegisterActorCommand(self._target, singleton))
+            self.__logger__.info("Registered {}".format(self._target))
+        except Exception as e:
+          self.__logger__.exception(e)
     self._start()
 
   def _start(self):
@@ -58,33 +66,62 @@ class SmtpDispatcher(Actor):
     elif isinstance(message, ServerInitEvent):
       self._initialize(message)
 
+
 class SmtpMessage(object):
   implements(smtp.IMessage)
 
-  def __init__(self, event):
+  def __init__(self, dispatcher):
     self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
-    self._event = event
+    self._dispatcher = dispatcher
     self.lines = []
+    self.received = None
+    self.headers = None
+    self.body = None
 
   def lineReceived(self, line):
     self.lines.append(line)
 
   def eomReceived(self):
-    self.lines.append('') # add a trailing newline
-    messageData = '\n'.join(self.lines)
-    self._event.set_content(messageData)
-
+    self.format_data()
+    event = SmtpReceiveEvent(self.received, self.headers, self.body)
+    self._dispatcher._dispatch(event)
     return defer.succeed(None)
 
   def connectionLost(self):
-    del(self.lines)
+    self.__logger__.error("Connection lost")
+
+  def format_data(self):
+    self.received = self.lines[0]
+    header_lines = []
+    body_lines = []
+    end_headers = False
+    for line in self.lines[1:]:
+      if line == "" and not end_headers:
+        end_headers = True
+      elif not end_headers:
+        header_lines.append(line)
+      else:
+        body_lines.append(line)
+
+    self.headers = {}
+    for line in header_lines:
+      try:
+        header_content = line.split(": ")
+        header_name = header_content[0]
+        header_value = header_content[1]
+        self.headers[header_name] = header_value
+      except Exception as e:
+        self.__logger__.error("Faulty header: {}".format(line))
+        self.__logger__.exception(e)
+
+    self.body = "\n".join(body_lines)
+
 
 class SmtpMessageDelivery(object):
   implements(smtp.IMessageDelivery)
 
-  def __init__(self, event):
-    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
-    self._event = event
+  def __init__(self, dispatcher):
+    self._dispatcher = dispatcher
 
   def receivedHeader(self, helo, origin, recipients):
     myHostname, clientIP = helo
@@ -94,12 +131,13 @@ class SmtpMessageDelivery(object):
   def validateTo(self, user):
     # whitelist here. if not on whitelist,
     # raise smtp.SMTPBadRcpt(user)
-    return lambda: SmtpMessage(self._event)
+    return lambda: SmtpMessage(self._dispatcher)
 
   def validateFrom(self, helo, originAddress):
     # whitelist here. if not on whitelist,
     # raise smtp.SMTPBadSender
     return originAddress
+
 
 class SmtpFactory(protocol.ServerFactory):
   def __init__(self, dispatcher):
@@ -107,35 +145,24 @@ class SmtpFactory(protocol.ServerFactory):
     self.__dispatcher__ = dispatcher
 
   def buildProtocol(self, addr):
-    event = SmtpReceiveEvent()
-    delivery = SmtpMessageDelivery(event)
+    delivery = SmtpMessageDelivery(self.__dispatcher__)
     smtpProtocol = smtp.SMTP(delivery)
     smtpProtocol.factory = self
-    self.__dispatcher__.tell(event)
 
     return smtpProtocol
 
-class SmtpReceiveEvent():
-  def __init__(self):
-    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
 
-    self._content = None
-    self._ready = False
+class SmtpReceiveEvent(object):
+  def __init__(self, received, headers, body):
+    self._body = body
+    self._headers = headers
+    self._received = received
 
-  def register_callback(self):
-    # idea: if not ready,
-    # register a callback to be called with content on ready
-    pass
+  def body(self):
+    return self._body
 
-  def set_content(self, content):
-    self._content = content
-    self.set_ready()
+  def headers(self):
+    return self._headers
 
-  def get_content(self):
-    return self._content
-
-  def set_ready(self):
-    self._ready = True
-
-  def get_ready(self):
-    return self._ready
+  def received(self):
+    return self._received
