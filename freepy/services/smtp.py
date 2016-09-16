@@ -94,7 +94,7 @@ class SmtpMessage(object):
 
   def format_data(self):
     self.received = self.lines[0]
-    
+
     header_lines = []
     body_lines = []
     end_headers = False
@@ -147,7 +147,7 @@ class SmtpMessageDelivery(object):
           return originAddress
 
     self.__logger__.error("Sender not whitelisted")
-    raise smtp.SMTPBadSender()
+    raise smtp.SMTPBadSender(originAddress)
 
 
 class SmtpFactory(protocol.ServerFactory):
