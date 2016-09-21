@@ -130,12 +130,13 @@ class SmtpMessageDelivery(object):
   def __init__(self, dispatcher):
     self._dispatcher = dispatcher
     self._whitelist = dispatcher._whitelist
+    self._allow_all = dispatcher._allow_all
     self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
 
   def receivedHeader(self, helo, origin, recipients):
     myHostname, clientIP = helo
-    headerValue = "by {} from {} with SMTP ; {}".format(myHostname, clientIP, smtp.rfc822date( ))
-    return "Received: {}".format(Header(headerValue))
+    headerValue = 'by {} from {} with SMTP ; {}'.format(myHostname, clientIP, smtp.rfc822date( ))
+    return 'Received: {}'.format(Header(headerValue))
 
   def validateTo(self, user):
     # whitelist here. if not on whitelist,
@@ -144,11 +145,11 @@ class SmtpMessageDelivery(object):
 
   def validateFrom(self, helo, originAddress):
     myHostname, clientIP = helo
-    self.__logger__.debug(clientIP)
     if self._allow_all or str(clientIP) in self._whitelist:
       return originAddress
 
-    self.__logger__.error("Sender not whitelisted")
+    self.__logger__.error('Sender not whitelisted')
+    self.__logger__.error('offending IP: '+str(clientIP))
     raise smtp.SMTPBadSender(originAddress)
 
 
