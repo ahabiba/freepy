@@ -56,6 +56,15 @@ http = {
   }
 }
 
+# The SMTP server configuration.
+# WIP
+smtp = {
+  'port': 2525,
+  'pages': {
+    # '404': '/path/to/404.html'
+  }
+}
+
 # The possible logging level values are:
 #   CRITICAL
 #   ERROR
@@ -66,7 +75,7 @@ http = {
 logging = {
   'level': DEBUG,
   'format': '%(asctime)s %(levelname)s - %(name)s - %(message)s',
-  'filename': None # '/var/log/freepy/freepy.log'
+  'filename': '/var/log/freepy/freepy.log'
 }
 
 # A list of services to register with the router.
@@ -174,5 +183,11 @@ services = [
     'name': 'HTTP Service',
     'messages': [],
     'target': 'freepy.services.http.HttpDispatcher'
+  },
+  # not sure about this? we will see
+  {
+    'name': 'SMTP Service',
+    'messages': [],
+    'target': 'freepy.services.smtp.SmtpDispatcher'
   }
 ]
