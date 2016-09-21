@@ -75,7 +75,7 @@ smtp = {
 logging = {
   'level': DEBUG,
   'format': '%(asctime)s %(levelname)s - %(name)s - %(message)s',
-  'filename': None #'/var/log/freepy/freepy.log'
+  'filename': '/var/log/freepy/freepy.log'
 }
 
 # A list of services to register with the router.

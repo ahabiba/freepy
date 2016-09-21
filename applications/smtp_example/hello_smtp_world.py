@@ -32,7 +32,6 @@ class HelloSmtpWorld(Actor):
 
   def receive(self, message):
     if isinstance(message, SmtpReceiveEvent):
-      event = message
       self.__logger__.debug(message.received())
       self.__logger__.debug(message.headers())
       self.__logger__.debug(message.body())

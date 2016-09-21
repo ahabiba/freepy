@@ -45,7 +45,9 @@ class SmtpDispatcher(Actor):
     for item in message.meta():
       if item and item.has_key('smtp'):
         smtp = item.get('smtp')
-        self._whitelist = smtp.get('whitelist')
+        self._whitelist = smtp.get('whitelist').get('ips')
+        self._allow_all = smtp.get('whitelist').get('allow_all')
+
 
         rule = smtp.get('rule')
         try:
@@ -93,8 +95,10 @@ class SmtpMessage(object):
     self.__logger__.error("Connection lost")
 
   def format_data(self):
-    self.received = self.lines[0]
+    self.__logger__.debug("unformatted smtp message: ")
+    self.__logger__.debug(self.lines)
 
+    self.received = self.lines[0]
     header_lines = []
     body_lines = []
     end_headers = False
@@ -140,11 +144,9 @@ class SmtpMessageDelivery(object):
 
   def validateFrom(self, helo, originAddress):
     myHostname, clientIP = helo
-
-    for whitelist_item in self._whitelist:
-      if clientIP == whitelist_item.get('ip'):
-        if str(originAddress) == whitelist_item.get('system_address'):
-          return originAddress
+    self.__logger__.debug(clientIP)
+    if self._allow_all or str(clientIP) in self._whitelist:
+      return originAddress
 
     self.__logger__.error("Sender not whitelisted")
     raise smtp.SMTPBadSender(originAddress)
