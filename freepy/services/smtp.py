@@ -25,7 +25,7 @@ from zope.interface import implements
 
 from twisted.internet import protocol, reactor, defer
 from twisted.mail import smtp
-from email.Header import Header
+from email.header import Header
 
 import logging
 from freepy import settings
