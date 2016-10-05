@@ -79,15 +79,14 @@ class SmtpMessage(object):
     self._dispatcher = dispatcher
     self.lines = []
     self.received = None
-    self.headers = None
-    self.body = None
+    self.message = None
 
   def lineReceived(self, line):
     self.lines.append(line)
 
   def eomReceived(self):
     self.format_data()
-    event = SmtpReceiveEvent(self.received, self.headers, self.body)
+    event = SmtpReceiveEvent(self.received, self.message)
     self._dispatcher._dispatch(event)
     return defer.succeed(None)
 
@@ -98,30 +97,7 @@ class SmtpMessage(object):
     self.__logger__.debug("unformatted smtp message: ")
     self.__logger__.debug(self.lines)
 
-    self.received = self.lines[0]
-    header_lines = []
-    body_lines = []
-    end_headers = False
-    for line in self.lines[1:]:
-      if line == "" and not end_headers:
-        end_headers = True
-      elif not end_headers:
-        header_lines.append(line)
-      else:
-        body_lines.append(line)
-
-    self.headers = {}
-    for line in header_lines:
-      try:
-        header_content = line.split(": ")
-        header_name = header_content[0]
-        header_value = header_content[1]
-        self.headers[header_name] = header_value
-      except Exception as e:
-        self.__logger__.error("Faulty header: {}".format(line))
-        self.__logger__.exception(e)
-
-    self.body = "\n".join(body_lines)
+    self.message = "\n".join(self.lines)
 
 
 class SmtpMessageDelivery(object):
@@ -136,6 +112,7 @@ class SmtpMessageDelivery(object):
   def receivedHeader(self, helo, origin, recipients):
     myHostname, clientIP = helo
     headerValue = 'by {} from {} with SMTP ; {}'.format(myHostname, clientIP, smtp.rfc822date( ))
+    # this line creates the second "received" line. should probably be commented out
     return 'Received: {}'.format(Header(headerValue))
 
   def validateTo(self, user):
@@ -167,16 +144,12 @@ class SmtpFactory(protocol.ServerFactory):
 
 
 class SmtpReceiveEvent(object):
-  def __init__(self, received, headers, body):
-    self._body = body
-    self._headers = headers
+  def __init__(self, received, message):
+    self._message = message
     self._received = received
 
-  def body(self):
-    return self._body
-
-  def headers(self):
-    return self._headers
+  def message(self):
+    return self._message
 
   def received(self):
     return self._received
