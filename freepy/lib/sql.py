@@ -18,8 +18,9 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 from sqlalchemy.pool import StaticPool
 
+from config import DB_CONNECTION_DEFAULTS
 from freepy.lib.application import Actor
-from freepy.lib.server import RouteMessageCommand, ServerInitEvent
+from freepy.lib.server import ServerInitEvent
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -51,52 +52,96 @@ class SQLAlchemyService(Actor):
   def _start(self):
     try:
       for database in settings.databases:
-        if database.has_key('name') and database.has_key('url'):
-          connections = database.get('connections')
-          if connections is not None:
-            max_overflow = connections.get('max_overflow', 10)
-            pool_size = connections.get('pool_size', 5)
-            timeout = connections.get('timeout', 30)
-          else:
-            max_overflow = 10
-            pool_size = 20
-            timeout = 30
-          url = database.get('url')
-          if 'sqlite' in url:
-            engine = create_engine(
-              url,
-              connect_args = {
-               'check_same_thread': False
-              },
-              poolclass = StaticPool
-            )
-          else:
-            engine = create_engine(
-              url,
-              max_overflow = max_overflow,
-              pool_size = pool_size,
-              pool_timeout = timeout
-            )
-          self._engines.update({
-            database.get('name'): engine
-          })
-          orm = database.get('orm')
-          if orm is not None and orm == True:
-            session_maker = sessionmaker()
-            session_maker.configure(bind = engine)
-            self._session_makers.update({
-              database.get('name'): session_maker
-            })
-          self._logger.info('Loaded %s database resource' % \
-                            database.get('name'))
+        self._load_db_session(database)
     except Exception as e:
       self._logger.critical(
         'There was an error initializing the SQL Alchemy service.'
       )
       self._logger.exception(e)
 
-  def __stop__(self):
-    for name, engine in self._engines.iteritems():
+  @staticmethod
+  def _has_required_fields(database):
+    has_url = 'url' in database
+    has_urls = 'urls' in database
+    has_name = 'name' in database
+
+    return has_name and (has_url or has_urls)
+
+  def _load_db_session(self, database):
+    if not self._has_required_fields(database):
+      return None
+
+    use_orm = database.get('orm', False)
+
+    connections = DB_CONNECTION_DEFAULTS.copy()
+    connections.update(database.get('connections', {}))
+
+    max_overflow = connections['max_overflow']
+    pool_size = connections['pool_size']
+    timeout = connections['timeout']
+
+    try:
+      # database has multiple URLs
+      self._load_multi_bind_db_session(
+        database, max_overflow, pool_size, timeout, use_orm)
+
+    except KeyError:
+      # database has single URL
+      self._load_single_bind_db_session(
+        database, max_overflow, pool_size, timeout, use_orm)
+
+    self._logger.info('Loaded {} database resource'.format(database['name']))
+
+  def _load_single_bind_db_session(self, database, max_overflow, pool_size,
+                                   timeout, use_orm):
+    engine = self._get_engine(
+      max_overflow, pool_size, timeout, database['url'])
+    self._engines[database['name']] = engine
+    if use_orm is True:
+      self._add_single_db_session_to_context(database['name'], engine)
+
+  def _load_multi_bind_db_session(self, database, max_overflow, pool_size,
+                                  timeout, use_orm):
+    binds = []
+    for url_key in database['urls'].keys():
+      binds.append(database['urls'][url_key])
+      engine = self._get_engine(
+        max_overflow, pool_size, timeout, database['url'])
+      self._engines[url_key] = engine
+    if use_orm is True:
+      self._add_multi_db_session_to_context(database['name'], binds)
+
+  def _add_single_db_session_to_context(self, db_name, engine):
+    session_maker = sessionmaker()
+    session_maker.configure(bind=engine)
+    self._session_makers[db_name] = session_maker
+
+  def _add_multi_db_session_to_context(self, db_name, binds):
+    session_maker = sessionmaker()
+    session_maker.configure(binds=binds)
+    self._session_makers[db_name] = session_maker
+
+  @staticmethod
+  def _get_engine(max_overflow, pool_size, timeout, url):
+    if 'sqlite' in url:
+      engine = create_engine(
+        url,
+        connect_args={
+          'check_same_thread': False
+        },
+        poolclass=StaticPool
+      )
+    else:
+      engine = create_engine(
+        url,
+        max_overflow=max_overflow,
+        pool_size=pool_size,
+        pool_timeout=timeout
+      )
+    return engine
+
+  def _stop(self):
+    for engine in self._engines.values():
       engine.dispose()
 
   def receive(self, message):
