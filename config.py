@@ -26,6 +26,12 @@ concurrency = {
   }
 }
 
+DB_CONNECTION_DEFAULTS = {
+  'max_overflow': 10,
+  'pool_size': 20,
+  'timeout': 30
+}
+
 # The SQL Alchemy service configuration.
 databases = [
   {

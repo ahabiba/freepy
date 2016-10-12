@@ -144,6 +144,7 @@ class MessageRouterWorker(Thread):
     self._queue = queue
 
   def run(self):
+    from telerest.lb.messages.client_cache_request import ClientCacheRequest
     while True:
       recipient, message = self._queue.get(True)
       if recipient == None and message == None:
