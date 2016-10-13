@@ -104,9 +104,10 @@ class SQLAlchemyService(Actor):
                                   timeout, use_orm):
     binds = []
     for url_key in database['urls'].keys():
-      binds.append(database['urls'][url_key])
+      url = database['urls'][url_key]
+      binds.append(url)
       engine = self._get_engine(
-        max_overflow, pool_size, timeout, database['url'])
+        max_overflow, pool_size, timeout, url)
       self._engines[url_key] = engine
     if use_orm is True:
       self._add_multi_db_session_to_context(database['name'], binds)
