@@ -32,6 +32,8 @@ DB_CONNECTION_DEFAULTS = {
   'timeout': 30
 }
 
+db_multibind = False
+
 # The SQL Alchemy service configuration.
 databases = [
   {
