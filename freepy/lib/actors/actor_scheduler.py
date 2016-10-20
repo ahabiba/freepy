@@ -62,11 +62,11 @@ class ActorScheduler(object):
       return format_ms(total_run_time)
 
   def _run(self):
-    # Initialize the number of running actors.
     n_running_actors = len(self._idle_actor_procs) + \
                        len(self._ready_actor_procs) + \
                        len(self._waiting_actor_procs)
     # Start the scheduler loop.
+    self._start_run_time = time.time()
     while self._running or n_running_actors > 0:
       # Check the idle actor processors list for actors with new messages.
       if len(self._idle_actor_procs) > 0:
@@ -115,6 +115,8 @@ class ActorScheduler(object):
       n_running_actors = len(self._idle_actor_procs) + \
                          len(self._ready_actor_procs) + \
                          len(self._waiting_actor_procs)
+    # Wrap up!
+    self._stop_run_time = time.time()
 
   def interrupt(self):
     # Constrain the actor to the max time slice.
@@ -136,10 +138,7 @@ class ActorScheduler(object):
       actor_proc.tell(poison_pill)
     # Stop the scheduler.
     self._running = False
-    # Update the scheduler run-time state.
-    self._stop_run_time = time.time()
 
   def start(self):
     self._running = True
-    self._start_run_time = time.time()
     self._run()
