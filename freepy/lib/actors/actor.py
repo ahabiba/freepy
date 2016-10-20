@@ -20,6 +20,7 @@
 from uuid import uuid4
 
 from actor_processor import ActorProcessor
+from messages.poison_pill import PoisonPill
 
 class Actor(object):
   '''
@@ -47,6 +48,9 @@ class Actor(object):
     '''
 
     raise NotImplementedError()
+
+  def stop(self):
+    self.tell(PoisonPill())
 
   def tell(self, message):
     self._mailbox.append(message)
