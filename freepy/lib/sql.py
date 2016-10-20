@@ -19,7 +19,8 @@
 from sqlalchemy.pool import StaticPool
 
 from config import DB_CONNECTION_DEFAULTS
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.server import ServerInitEvent
 
 from sqlalchemy import create_engine
@@ -31,9 +32,9 @@ from freepy import settings
 class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):
     super(SQLAlchemyService, self).__init__(*args, **kwargs)
-    self._logger = logging.getLogger('lib.sql.SQLAlchemyService')
-    self._engines = {}
-    self._session_makers = {}
+    self._logger = logging.getLogger(object_fqn(self))
+    self._engines = dict()
+    self._session_makers = dict()
     self._start()
 
   def _fetch_engine(self, message):

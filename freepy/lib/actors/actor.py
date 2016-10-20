@@ -16,23 +16,37 @@
 # under the License.
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
-#
-# Lyle Pratt <lylepratt@gmail.com>
 
-from freepy.lib.actors.actor import Actor
-from freepy.lib.actors.utils import object_fqn
-from freepy.services.smtp import SmtpReceiveEvent
+from uuid import uuid4
 
-import logging
-import time
+from actor_processor import ActorProcessor
 
-class HelloSmtpWorld(Actor):
-  def __init__(self, *args, **kwargs):
-    super(HelloSmtpWorld, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger(object_fqn(self))
+class Actor(object):
+  '''
+  An actor is the most basic unit of computation in an actor framework.
+  '''
+
+  def __init__(self, scheduler, *args, **kwargs):
+    super(Actor, self).__init__()
+    self._mailbox = list()
+    self._scheduler = scheduler
+    self._urn = uuid4()
+    # Schedule ourself for execution.
+    proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn)
+    proc.start()
+
+  def __getattr__(self, name):
+    if name == 'scheduler':
+      return self._scheduler
+    elif name == 'urn':
+      return self._urn
 
   def receive(self, message):
-    if isinstance(message, SmtpReceiveEvent):
-      self.__logger__.debug(message.received())
-      self.__logger__.debug(message.headers())
-      self.__logger__.debug(message.body())
+    '''
+    This method processes incoming messages.
+    '''
+
+    raise NotImplementedError()
+
+  def tell(self, message):
+    self._mailbox.append(message)

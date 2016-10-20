@@ -17,7 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.server import RouteMessageCommand, ServerDestroyEvent, ServerInitEvent
 from llist import dllist
 from threading import Thread
@@ -84,7 +85,7 @@ class TimerService(Actor):
   def __init__(self, *args, **kwargs):
     super(TimerService, self).__init__(*args, **kwargs)
     # Initialize the timing wheels. The finest possible
-    self._logger = logging.getLogger('lib.timer.TimerService')
+    self._logger = logging.getLogger(object_fqn(self))
     # granularity is 100ms.
     self._timer_vector1 = self._create_vector(256)
     self._timer_vector2 = self._create_vector(256)

@@ -17,22 +17,26 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from freepy.lib.application import *
-from threading import Thread
-from twisted.internet import reactor
-
 import json
 import logging
 import os
 import signal
-import config
-import sys
 
+from threading import Thread
+
+from twisted.internet import reactor
+
+import config
 from freepy import settings
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.actor_registry import ActorRegistry
+from freepy.lib.actors.actor_scheduler import ActorScheduler
+from freepy.lib.actors.messages.poison_pill import PoisonPill
+from freepy.lib.actors.utils import class_fqn, object_fqn
 
 class Bootstrap(object):
   def __init__(self, *args, **kwargs):
-    self._logger = logging.getLogger('lib.server.Bootstrap')
+    self._logger = logging.getLogger(object_fqn(self))
     if 'settings' in kwargs:
       settings.update(kwargs.get('settings'))
     else:
@@ -50,26 +54,18 @@ class Bootstrap(object):
       level=settings.logging.get('level')
     )
 
-  def _create_router(self, n_threads):
-    router = MessageRouter(n_threads = n_threads)
-    router.start()
-    return router
-
-  def _create_server(self, meta, router):
-    return Server(meta = meta, router = router)
-
   def _load_meta(self):
     def load_meta_file(metafile):
       if not os.path.exists(metafile):
         self._logger.warning('The application %s is missing a metafile.' % \
                              item)
         return
-      with open(metafile, 'r') as input:
+      with open(metafile, 'r') as source:
         try:
-          return json.loads(input.read())
+          return json.loads(source.read())
         except Exception as e:
-          self._logger.warning('There was an error reading the ' + \
-                                  'metafile for %s.' % item)
+          self._logger.warning('There was an error reading the metafile ' \
+                               'for %s.' % item)
           self._logger.exception(e)
           return
 
@@ -99,47 +95,46 @@ class Bootstrap(object):
     :return:
     """
     self._configure_logging()
-    meta = self._load_meta()
-    router = self._create_router(
-      n_threads = settings.concurrency.get('threads').get('pool_size')
-    )
-    server = self._create_server(meta, router)
-    server.tell(BootstrapCompleteEvent())
+    # Start the actor system scheduler.
+    scheduler = ActorScheduler(10, 50) # <--- TODO:args should be configurable.
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
-      self._logger.critical('FreePy is now shutting down!!!')
-      server.tell(ShutdownEvent())
+      scheduler.shutdown()
+      while True:
+        if not scheduler.is_running:
+          break  
+      reactor.stop()
     signal.signal(signal.SIGINT, signal_handler)
+    # Start the scheduler thread.
+    scheduler_thread = Thread(target=scheduler.start)
+    scheduler_thread.daemon = True
+    scheduler_thread.start()
+    # Start the Twisted reactor thread.
+    reactor_thread = Thread(target=reactor.run, args=(False,))
+    reactor_thread.daemon = True
+    reactor_thread.start()
+    # Start the freepy server.
+    meta = self._load_meta()
+    server = Server(meta, scheduler)
     if not wait_for_signal:
       return server
     signal.pause()
 
 class Server(Actor):
-  def __init__(self, *args, **kwargs):
-    super(Server, self).__init__(*args, **kwargs)
-    self._logger = logging.getLogger('lib.server.Server')
-    self._observers = {}
-    self._reactor = Thread(target = reactor.run, args = (False,))
-    self._router = kwargs.get('router')
-    self._applications = ActorRegistry(
-      init_msg = ServerInfoEvent(self),
-      destroy_msg = ServerDestroyEvent(),
-      router = self._router
-    )
-    self._services = ActorRegistry(
-      init_msg = ServerInitEvent(self, kwargs.get('meta')),
-      destroy_msg = ServerDestroyEvent(),
-      router = self._router
-    )
+  def __init__(self, meta, scheduler):
+    self._logger = logging.getLogger(object_fqn(self))
+    self._applications = ActorRegistry(scheduler)
+    self._services = ActorRegistry(scheduler)
+    self._meta = meta
+    self._observers = dict()
+    self._scheduler = scheduler
+    super(Server, self).__init__(scheduler)
 
-  def _fqn(self, obj):
-    if type(obj) == type:
-      module = obj.__module__
-      klass = obj.__name__
+  def _fqn(self, o):
+    if type(o) == type:
+      return class_fqn(o)
     else:
-      module = obj.__class__.__module__
-      klass = obj.__class__.__name__
-    return '%s.%s' % (module, klass)
+      return object_fqn(o)
 
   def _broadcast(self, fqn, message):
     recipients = self._observers.get(fqn)
@@ -147,48 +142,25 @@ class Server(Actor):
       recipient.tell(message)
 
   def _register(self, message):
-    self._applications.register(
-      message.fqn(),
-      message.singleton()
-    )
-
-  def _start_services(self):
-    for service in settings.services:
-      try:
-        target = service.get('target')
-        self._services.register(target, singleton = True)
-        messages = service.get('messages')
-        if messages is not None and len(messages) > 0:
-          observer = self._services.get(target)
-          for message in messages:
-            if not self._observers.has_key(message):
-              self._observers.update({message: [observer]})
-            else:
-              self._observers.get(message).append(observer)
-        if service.has_key('name'):
-          self._logger.info('Loaded %s' % service.get('name'))
-      except Exception as e:
-        name = service.get('name')
-        if name is not None:
-          self._logger.error('There was an error loading %s' % name)
-        self._logger.exception(e)
-    self._reactor.start()
+    fqn = message.fqn()
+    singleton = message.singleton()
+    if fqn is not None and singleton is not None:
+      if singleton:
+        self._applications.register_singleton(fqn, ServerInfoEvent(self))
+      else:
+        self._applications.register_class(fqn)
 
   def _unicast(self, message):
     recipient = None
     target = message.target()
-    if self._services.exists(target):
-      recipient = self._services.get(target)
-    elif self._applications.exists(target):
-      recipient = self._applications.get(target)
+    if self._services.has(target):
+      recipient = self._services.get_instance(target)
+    elif self._applications.has(target):
+      recipient = self._applications.get_instance(
+        target, ServerInfoEvent(self)
+      )
     if recipient is not None:
       recipient.tell(message.message())
-
-  def _stop(self):
-    self._applications.shutdown()
-    self._services.shutdown()
-    self._router.stop()
-    reactor.stop()
 
   def _unwatch(self, message):
     fqn = self._fqn(message.message())
@@ -207,6 +179,28 @@ class Server(Actor):
     else:
       self._observers.get(fqn).append(observer)
 
+  def on_start(self):
+    services = settings.services
+    # Register the services as singleton actors.
+    init_event = ServerInitEvent(self, self._meta)
+    for service in services:
+      target = service.get('target')
+      self._services.register_singleton(target)
+      self._services.get_instance(target).tell(init_event)
+    # Register the messages recognized by each service.
+    for service in services:
+      messages = service.get('messages')
+      if messages and len(messages) > 0:
+        observer = self._services.get_instance(service.get('target'))
+        for message in messages:
+          if not self._observers.has_key(message):
+            self._observers.update({message: [observer]})
+          else:
+            self._observers.get(message).append(observer)
+
+  def on_stop(self):
+    self._logger.critical("FreePy is now shutting down!!!")
+
   def receive(self, message):
     fqn = self._fqn(message)
     if isinstance(message, RouteMessageCommand):
@@ -219,21 +213,9 @@ class Server(Actor):
       self._unwatch(message)
     elif isinstance(message, RegisterActorCommand):
       self._register(message)
-    elif isinstance(message, BootstrapCompleteEvent):
-      self._start_services()
-    elif isinstance(message, ShutdownEvent):
-      self._stop()
-
-  @property
-  def router(self):
-    return self._router
-
-class BootstrapCompleteEvent(object):
-  def __init__(self, *args, **kwargs):
-    super(BootstrapCompleteEvent, self).__init__(*args, **kwargs)
 
 class RegisterActorCommand(object):
-  def __init__(self, fqn, singleton = False):
+  def __init__(self, fqn, singleton=False):
     self._fqn = fqn
     self._singleton = singleton
 
@@ -297,7 +279,3 @@ class UnwatchMessagesCommand(object):
 
   def observer(self):
     return self._observer
-
-class ShutdownEvent(object):
-  def __init__(self, *args, **kwargs):
-    super(ShutdownEvent, self).__init__(*args, **kwargs)

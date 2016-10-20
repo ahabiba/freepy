@@ -19,7 +19,7 @@
 #
 # Lyle Pratt <lylepratt@gmail.com>
 
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
 from freepy.lib.server import ServerInfoEvent
 from freepy.services.http import HttpRequestEvent
 from freepy.services.freeswitch import EventSocketEvent
