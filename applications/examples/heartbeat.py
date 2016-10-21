@@ -170,3 +170,4 @@ class Monitor(Actor):
         ''' % ((100 - float(self._info[0]['Idle-CPU'])), self._info[0]['Session-Count'], timeseries_js, json.dumps(self._info, indent = 2, sort_keys = True))
         request.write(responseString)
         request.finish()
+    self.stop()
