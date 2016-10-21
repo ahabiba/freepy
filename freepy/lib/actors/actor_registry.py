@@ -52,11 +52,12 @@ class ActorRegistry(object):
     return class_loader.safe_import(fqn, force_load=True)
 
   def get_instance(self, fqn, init_message=None):
-    if self._classes.has_key(fqn):
+    if self.has_class(fqn):
       actor = self._load_actor(self._classes.get(fqn))
       if init_message is not None:
         actor.tell(init_message)
-    elif self._singletons.has_key(fqn):
+      return actor
+    elif self.has_instance(fqn):
       return self._singletons.get(fqn)
 
   def has(self, fqn):
@@ -73,12 +74,12 @@ class ActorRegistry(object):
       raise ValueError(CLASS_REGISTRATION_CONFLICT % (fqn))
     if self.has_class(fqn):
       del self._classes[fqn]
-    self._classes.update({fqn:self._load_class(fqn)})
+    self._classes.update({fqn: self._load_class(fqn)})
 
   def register_singleton(self, fqn, init_message=None):
     if self.has_class(fqn):
       raise ValueError(INSTANCE_REGISTRATION_CONFLICT % (fqn))
-    if self._singletons.has_key(fqn):
+    if self.has_instance(fqn):
       del self._singletons[fqn]
     actor = self._load_actor(self._load_class(fqn))
     if init_message is not None:

@@ -144,7 +144,7 @@ class Server(Actor):
   def _register(self, message):
     fqn = message.fqn()
     singleton = message.singleton()
-    if fqn is not None and singleton is not None:
+    if fqn is not None:
       if singleton:
         self._applications.register_singleton(fqn, ServerInfoEvent(self))
       else:
