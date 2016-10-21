@@ -6,6 +6,7 @@
       {
         "header_name": "Event-Name",
         "header_value": "HEARTBEAT",
+        "singleton": true,
         "target": "examples.heartbeat.Monitor"
       }
     ]
@@ -13,6 +14,7 @@
   "http": {
     "rules": [
       {
+        "singleton": true,
         "target": "examples.heartbeat.Monitor",
         "urls": [
           "/examples/heartbeat"
