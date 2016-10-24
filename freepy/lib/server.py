@@ -96,7 +96,8 @@ class Bootstrap(object):
     """
     self._configure_logging()
     # Start the actor system scheduler.
-    scheduler = ActorScheduler(10, 50) # <--- TODO:args should be configurable.
+    scheduler = ActorScheduler(settings.scheduler.get('max_messages_slice'),
+                               settings.scheduler.get('max_time_slice'))
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
       scheduler.shutdown()
