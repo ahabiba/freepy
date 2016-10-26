@@ -40,8 +40,6 @@ from freepy import settings
 import urllib
 
 class EventSocketBootstrapper(Actor, FiniteStateMachine):
-  initial_state = 'idle'
-
   transitions = [
     ('idle', 'authenticating'),
     ('authenticating', 'failed'),
