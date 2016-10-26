@@ -48,23 +48,33 @@ class ActorProcessor(object):
     self._total_msg_count = 0
     self._total_run_time = 0
 
-  def __getattr__(self, name):
-    if name == 'adjusted_priority':
-      return self._adj_priority
-    elif name == 'pending_msg_count':
-      return len(self._mailbox)
-    elif name == 'slice_msg_count':
-      return self._slice_msg_count
-    elif name == 'slice_penalty':
-      return self._slice_penalty
-    elif name == 'slice_run_time':
-      return self._slice_run_time
-    elif name == 'state':
-      return self._state
-    elif name == 'total_msg_count':
-      return self._total_msg_count
-    elif name == 'total_run_time':
-      return self._total_run_time
+  @property
+  def pending_msg_count(self):
+    return len(self._mailbox)
+
+  @property
+  def slice_msg_count(self):
+    return self._slice_msg_count
+
+  @property
+  def slice_penalty(self):
+    return self._slice_penalty
+
+  @property
+  def slice_run_time(self):
+    return self._slice_run_time
+
+  @property
+  def state(self):
+    return self._state
+
+  @property
+  def total_msg_count(self):
+    return self._total_msg_count
+
+  @property
+  def total_run_time(self):
+    return self._total_run_time
 
   def __setattr__(self, name, value):
     if name == 'slice_penalty':

@@ -36,11 +36,14 @@ class Actor(object):
     proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn)
     proc.start()
 
-  def __getattr__(self, name):
-    if name == 'scheduler':
-      return self._scheduler
-    elif name == 'urn':
-      return self._urn
+  @property
+  def scheduler(self):
+    return self._scheduler
+
+  @property
+  def urn(self):
+    return self._urn
+
 
   def receive(self, message):
     '''

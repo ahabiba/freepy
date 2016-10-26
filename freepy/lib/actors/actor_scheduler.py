@@ -44,22 +44,27 @@ class ActorScheduler(object):
     self._stop_run_time = None
     self._total_msgs_processed = 0
 
-  def __getattr__(self, name):
-    if name == 'is_running':
-      return self._running or self._stop_run_time is None
-    elif name == 'total_msgs_processed':
-      return self._total_msgs_processed
-    # Handle running time getters.
+  @property
+  def is_running(self):
+    return self._running or self._stop_run_time is None
+
+  @property
+  def total_msgs_processed(self):
+    return self._total_msgs_processed
+
+  @property
+  def total_run_time(self):
     total_run_time = 0
     if not self._start_run_time is None:
       if self._stop_run_time is None:
         total_run_time = time_delta_ms(self._start_run_time, time.time())
       else:
         total_run_time = time_delta_ms(self._start_run_time, self._stop_run_time)
-    if name == 'total_run_time':
-      return total_run_time
-    elif name == 'total_run_time_str':
-      return format_ms(total_run_time)
+    return total_run_time
+
+  @property
+  def total_run_time_str(self):
+    return format_ms(self.total_run_time)
 
   def _run(self):
     n_running_actors = len(self._idle_actor_procs) + \
