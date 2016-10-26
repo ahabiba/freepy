@@ -40,8 +40,6 @@ from freepy import settings
 import urllib
 
 class EventSocketBootstrapper(Actor, FiniteStateMachine):
-  initial_state = 'idle'
-
   transitions = [
     ('idle', 'authenticating'),
     ('authenticating', 'failed'),
@@ -249,10 +247,9 @@ class EventSocketDispatcher(Actor):
     self.__watches__ = []
 
   def _dispatch_auth(self, message):
-    bootstrapper = EventSocketBootstrapper(
+    bootstrapper = EventSocketBootstrapper(self._scheduler,
       dispatcher = self,
-      events = self.__events__,
-      scheduler = self._scheduler
+      events = self.__events__
     )
     bootstrapper.tell(message)
 

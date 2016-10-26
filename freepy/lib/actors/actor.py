@@ -28,10 +28,12 @@ class Actor(object):
   '''
 
   def __init__(self, scheduler, *args, **kwargs):
-    super(Actor, self).__init__()
-    self._mailbox = list()
     self._scheduler = scheduler
+
+    self._mailbox = list()
     self._urn = uuid4()
+
+    super(Actor, self).__init__()
     # Schedule ourself for execution.
     proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn)
     proc.start()

@@ -31,7 +31,7 @@ from freepy import settings
 
 class SQLAlchemyService(Actor):
   def __init__(self, *args, **kwargs):
-    super(SQLAlchemyService, self).__init__(*args, **kwargs)
+    super(SQLAlchemyService, self).__init__(*args)
     self._logger = logging.getLogger(object_fqn(self))
     self._engines = dict()
     self._session_makers = dict()

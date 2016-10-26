@@ -112,6 +112,9 @@ class FiniteStateMachine(object):
   '''
   A finite state machine.
   '''
+
+  initial_state = 'idle'
+
   def __init__(self, *args, **kwargs):
     super(FiniteStateMachine, self).__init__(*args, **kwargs)
     self._fsm_transition_table = self._create_lookup_table()
