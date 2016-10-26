@@ -17,7 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 
@@ -34,7 +35,7 @@ from freepy import settings
 class SmtpDispatcher(Actor):
   def __init__(self, *args, **kwargs):
     super(SmtpDispatcher, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('services.smtp.SmtpDispatcher')
+    self.__logger__ = logging.getLogger(object_fqn(self))
 
   def _dispatch(self, message):
     self.__server__.tell(RouteMessageCommand(message, self._target))

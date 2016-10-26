@@ -16,23 +16,16 @@
 # under the License.
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
-#
-# Lyle Pratt <lylepratt@gmail.com>
 
-from freepy.lib.actors.actor import Actor
-from freepy.lib.actors.utils import object_fqn
-from freepy.services.smtp import SmtpReceiveEvent
+# Actor processor states.
+ACTOR_PROCESSOR_COMPLETED = 'Completed'
+ACTOR_PROCESSOR_IDLE      = 'Idle'
+ACTOR_PROCESSOR_READY     = 'Ready'
+ACTOR_PROCESSOR_RUNNING   = 'Running'
 
-import logging
-import time
-
-class HelloSmtpWorld(Actor):
-  def __init__(self, *args, **kwargs):
-    super(HelloSmtpWorld, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger(object_fqn(self))
-
-  def receive(self, message):
-    if isinstance(message, SmtpReceiveEvent):
-      self.__logger__.debug(message.received())
-      self.__logger__.debug(message.headers())
-      self.__logger__.debug(message.body())
+# Time periods expressed in milliseconds.
+MS_SECOND = int(1e3)
+MS_MINUTE = int(60 * MS_SECOND)
+MS_HOUR   = int(60 * MS_MINUTE)
+MS_DAY    = int(24 * MS_HOUR)
+MS_WEEK   = int(7  * MS_DAY)

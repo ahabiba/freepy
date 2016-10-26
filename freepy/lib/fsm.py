@@ -22,6 +22,7 @@ In this module we implement a declarative finite state machine using method deco
 '''
 import types
 
+
 class FiniteStateMachineError(Exception):
   '''
   A finite state machine exception.

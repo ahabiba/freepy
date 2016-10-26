@@ -19,6 +19,12 @@
 
 from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
 
+# Scheduler settings
+scheduler = {
+  'max_messages_slice': 10,
+  'max_time_slice': 50
+}
+
 # Concurrency settings.
 concurrency = {
   'threads': {

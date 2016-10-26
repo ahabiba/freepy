@@ -18,7 +18,8 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 from commands import *
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.fsm import *
 from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
@@ -38,7 +39,7 @@ import re
 from freepy import settings
 import urllib
 
-class EventSocketBootstrapper(FiniteStateMachine, Actor):
+class EventSocketBootstrapper(Actor, FiniteStateMachine):
   initial_state = 'idle'
 
   transitions = [
@@ -51,9 +52,7 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
 
   def __init__(self, *args, **kwargs):
     super(EventSocketBootstrapper, self).__init__(*args, **kwargs)
-    self._logger = logging.getLogger(
-      'services.freeswitch.EventSocketBootstrapper'
-    )
+    self._logger = logging.getLogger(object_fqn(self))
     self._dispatcher = kwargs.get('dispatcher')
     self._events = kwargs.get('events')
     self._password = settings.freeswitch.get('password')
@@ -99,9 +98,7 @@ class EventSocketBootstrapper(FiniteStateMachine, Actor):
 
 class EventSocketClient(Protocol):
   def __init__(self, observer):
-    self._logger = logging.getLogger(
-      'services.freeswitch.EventSocketClient'
-    )
+    self._logger = logging.getLogger(object_fqn(self))
     self._buffer = None
     self._host = None
     self._observer = observer
@@ -233,9 +230,7 @@ class EventSocketClient(Protocol):
 
 class EventSocketClientFactory(ReconnectingClientFactory):
   def __init__(self, observer):
-    self.__logger__ = logging.getLogger(
-      'services.freeswitch.EventSocketClientFactory'
-    )
+    self.__logger__ = logging.getLogger(object_fqn(self))
     self.__observer__ = observer
 
   def buildProtocol(self, addr):
@@ -247,9 +242,7 @@ class EventSocketClientFactory(ReconnectingClientFactory):
 class EventSocketDispatcher(Actor):
   def __init__(self, *args, **kwargs):
     super(EventSocketDispatcher, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger(
-      'services.freeswitch.EventSocketDispatcher'
-    )
+    self.__logger__ = logging.getLogger(object_fqn(self))
     self.__observers__ = {}
     self.__owner__ = None
     self.__transactions__ = {}
@@ -259,7 +252,7 @@ class EventSocketDispatcher(Actor):
     bootstrapper = EventSocketBootstrapper(
       dispatcher = self,
       events = self.__events__,
-      router = self._router
+      scheduler = self._scheduler
     )
     bootstrapper.tell(message)
 
@@ -378,8 +371,8 @@ class EventSocketDispatcher(Actor):
   def _unwatch(self, message):
     for idx in xrange(len(self.__watches__)):
       watch = self.__watches__[idx]
-      if message.observer().urn() == \
-         watch.observer().urn():
+      if message.observer().urn == \
+         watch.observer().urn:
         if message.header_name() == watch.header_name() and \
            message.header_pattern() == watch.header_pattern() and \
            message.header_value() == watch.header_value():

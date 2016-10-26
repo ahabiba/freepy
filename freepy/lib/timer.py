@@ -17,7 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.server import RouteMessageCommand, ServerDestroyEvent, ServerInitEvent
 from llist import dllist
 from threading import Thread
@@ -84,7 +85,7 @@ class TimerService(Actor):
   def __init__(self, *args, **kwargs):
     super(TimerService, self).__init__(*args, **kwargs)
     # Initialize the timing wheels. The finest possible
-    self._logger = logging.getLogger('lib.timer.TimerService')
+    self._logger = logging.getLogger(object_fqn(self))
     # granularity is 100ms.
     self._timer_vector1 = self._create_vector(256)
     self._timer_vector2 = self._create_vector(256)
@@ -232,7 +233,7 @@ class TimerService(Actor):
         recurring.append(timer)
       else:
         lookup_table = self._actor_lookup_table
-        urn = timer.observer().urn()
+        urn = timer.observer().urn
         location = lookup_table.get(urn)
         if location:
           del lookup_table[urn]
@@ -248,7 +249,7 @@ class TimerService(Actor):
 
     Arguments: command - The StopTimeoutCommand.
     '''
-    urn = command.sender().urn()
+    urn = command.sender().urn
     location = self._actor_lookup_table.get(urn)
     if location:
       del self._actor_lookup_table[urn]
@@ -260,7 +261,7 @@ class TimerService(Actor):
     '''
     Updates a lookup table used for O(1) timer removal.
     '''
-    urn = node.value.observer().urn()
+    urn = node.value.observer().urn
     location = {
       'vector': vector,
       'node': node
@@ -320,7 +321,7 @@ class TimerService(Actor):
     if isinstance(message, ClockEvent):
       self._tick()
     elif isinstance(message, ReceiveTimeoutCommand):
-      urn = message.sender().urn()
+      urn = message.sender().urn
       if not self._actor_lookup_table.has_key(urn):
         timeout = message.timeout()
         observer = message.sender()

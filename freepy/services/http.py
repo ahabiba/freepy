@@ -17,7 +17,8 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
-from freepy.lib.application import Actor
+from freepy.lib.actors.actor import Actor
+from freepy.lib.actors.utils import object_fqn
 from freepy.lib.server import RegisterActorCommand, RouteMessageCommand, \
                        ServerDestroyEvent, ServerInitEvent
 from twisted.internet import reactor
@@ -34,7 +35,7 @@ class HttpDispatcher(Actor):
 
   def __init__(self, *args, **kwargs):
     super(HttpDispatcher, self).__init__(*args, **kwargs)
-    self.__logger__ = logging.getLogger('services.http.HttpDispatcher')
+    self.__logger__ = logging.getLogger(object_fqn(self))
 
   def _dispatch(self, message):
     for rule in self.__rules__:
