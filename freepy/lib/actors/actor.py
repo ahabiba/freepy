@@ -27,14 +27,8 @@ class Actor(object):
   An actor is the most basic unit of computation in an actor framework.
   '''
 
-  def __init__(self, *args, **kwargs):
-    ''' First *args must be scheduler
-    '''
-
-    if len(args) > 0:
-      self._scheduler = args[0]
-    else:
-      self._scheduler = kwargs['scheduler']
+  def __init__(self, scheduler, *args, **kwargs):
+    self._scheduler = scheduler
 
     self._mailbox = list()
     self._urn = uuid4()
