@@ -27,27 +27,27 @@ try:
 except:
   from StringIO import StringIO
 
+
 class EventSocketCommand(object):
-  def __init__(self, *args, **kwargs):
-    self.__sender__ = args[0]
-    if not self.__sender__:
-      raise ValueError('The sender parameter must be a valid reference to an actor.')
+  def __init__(self, sender):
+    self._sender = sender
 
   def sender(self):
-    return self.__sender__
+    return self._sender
+
 
 class BackgroundCommand(EventSocketCommand):
-  def __init__(self, *args, **kwargs):
-    super(BackgroundCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender):
+    super(BackgroundCommand, self).__init__(sender)
     self._job_uuid = uuid4().get_urn().split(':', 2)[2]
 
   def job_uuid(self):
     return self._job_uuid
 
 class UUIDCommand(BackgroundCommand):
-  def __init__(self, *args, **kwargs):
-    super(UUIDCommand, self).__init__(*args, **kwargs)
-    self._uuid = args[1]
+  def __init__(self, sender, uuid, **kwargs):
+    super(UUIDCommand, self).__init__(sender)
+    self._uuid = uuid
     if not self._uuid:
       raise ValueError('The value of uuid must be a valid UUID.')
 
@@ -55,9 +55,9 @@ class UUIDCommand(BackgroundCommand):
     return self._uuid
 
 class AuthCommand(EventSocketCommand):
-  def __init__(self, *args, **kwargs):
-    super(AuthCommand, self).__init__(*args, **kwargs)
-    self.__password__ = kwargs.get('password')
+  def __init__(self, sender, password):
+    super(AuthCommand, self).__init__(sender)
+    self.__password__ = password
 
   def __str__(self):
     return 'auth %s\n\n' % (self.__password__)
@@ -70,8 +70,8 @@ class ACLCheckCommand(BackgroundCommand):
              ip - Internet Protocol address.
              list_name - ACL list name.
   '''
-  def __init__(self, *args, **kwargs):
-    super(ACLCheckCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(ACLCheckCommand, self).__init__(sender)
     self._ip = kwargs.get('ip')
     self._list_name = kwargs.get('list_name')
     
@@ -238,8 +238,8 @@ class CheckUserGroupCommand(BackgroundCommand):
              'domain' - domain name.
              'group_name' - group name.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(CheckUserGroupCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(CheckUserGroupCommand, self).__init__(sender)
     self._user = kwargs.get('user')
     self._domain = kwargs.get('domain')
     self._group_name = kwargs.get('group_name')
@@ -292,8 +292,8 @@ class DialedExtensionHupAllCommand(BackgroundCommand):
              clearing - clearing type. 
              extension - extension number to be disconnected.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(DialedExtensionHupAllCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(DialedExtensionHupAllCommand, self).__init__(sender)
     self._clearing = kwargs.get('clearing')
     self._extension = kwargs.get('extension')
 
@@ -329,8 +329,8 @@ class DisableVerboseEventsCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(DisableVerboseEventsCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(DisableVerboseEventsCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl verbose_events off\nJob-UUID: %s\n\n' % self._job_uuid
@@ -365,8 +365,8 @@ class DomainExistsCommand(BackgroundCommand):
   Arguments: sender - The freepy actor sending this EventSocketCommand.
              domain - domain to check.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(DomainExistsCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(DomainExistsCommand, self).__init__(sender)
     self.__domain__ = kwargs.get('domain')
 
   def domain(self):
@@ -518,15 +518,15 @@ class EnableVerboseEventsCommand(BackgroundCommand):
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(EnableVerboseEventsCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(EnableVerboseEventsCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl verbose_events on\nJob-UUID: %s\n\n' % self._job_uuid
 
 class EventsCommand(EventSocketCommand):
-  def __init__(self, *args, **kwargs):
-    super(EventsCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(EventsCommand, self).__init__(sender)
     self._events = kwargs.get('events', ['BACKGROUND_JOB'])
     self._format = kwargs.get('format', 'plain')
     if(self._format is not 'json' and \
@@ -630,8 +630,8 @@ class GetDefaultDTMFDurationCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetDefaultDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetDefaultDTMFDurationCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl default_dtmf_duration 0\nJob-UUID: %s\n\n' % self._job_uuid
@@ -645,8 +645,8 @@ class GetGlobalVariableCommand(BackgroundCommand):
 
   * If the parameter is not provided then it gets all the global variables. 
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetGlobalVariableCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetGlobalVariableCommand, self).__init__(sender)
     self._name = kwargs.get('name')
     if not self._name:
       raise ValueError('The name parameter is required.')
@@ -664,8 +664,8 @@ class GetMaxSessionsCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetMaxSessionsCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetMaxSessionsCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl max_sessions\nJob-UUID: %s\n\n' % self._job_uuid
@@ -676,8 +676,8 @@ class GetMaximumDTMFDurationCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetMaximumDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetMaximumDTMFDurationCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl max_dtmf_duration 0\nJob-UUID: %s\n\n' % self._job_uuid
@@ -688,8 +688,8 @@ class GetMinimumDTMFDurationCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetMinimumDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetMinimumDTMFDurationCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl min_dtmf_duration 0\nJob-UUID: %s\n\n' % self._job_uuid
@@ -700,8 +700,8 @@ class GetSessionsPerSecondCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(GetSessionsPerSecondCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetSessionsPerSecondCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl last_sps\nJob-UUID: %s\n\n' % self._job_uuid
@@ -744,8 +744,8 @@ class GetGroupCallBridgeStringCommand(BackgroundCommand):
       will return them in a enterprise fashion (separated by :_:). 
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(GetGroupCallBridgeStringCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(GetGroupCallBridgeStringCommand, self).__init__(sender)
     self.__group__ = kwargs.get('group')
     self.__domain__ = kwargs.get('domain')
     self.__option__ = kwargs.get('option')
@@ -794,8 +794,8 @@ class HupAllCommand(BackgroundCommand):
              var_value - optional parameter variable value. 
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(HupAllCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(HupAllCommand, self).__init__(sender)
     self.__cause__ = kwargs.get('cause')
     self.__var_name__ = kwargs.get('var_name')
     self.__var_value__ = kwargs.get('var_value')
@@ -907,8 +907,8 @@ class LoadModuleCommand(BackgroundCommand):
   Arguments: sender - The freepy actor sending this EventSocketCommand.
              name - module name.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(LoadModuleCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(LoadModuleCommand, self).__init__(sender)
     self.__name__ = kwargs.get('name')
 
   def name(self):
@@ -965,8 +965,8 @@ class OriginateCommand(BackgroundCommand):
       sip_auto_answer 
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(OriginateCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(OriginateCommand, self).__init__(sender)
     self._url = kwargs.get('url')
     self._extension = kwargs.get('extension')
     self._app_name = kwargs.get('app_name')
@@ -1051,8 +1051,8 @@ class PauseSessionCreationCommand(BackgroundCommand):
              direction - inbound or outbound or None paramater value.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(PauseSessionCreationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(PauseSessionCreationCommand, self).__init__(sender)
     self.__direction__ = kwargs.get('direction')
 
   def direction(self):
@@ -1128,8 +1128,8 @@ class ReclaimMemoryCommand(BackgroundCommand):
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(ReclaimMemoryCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(ReclaimMemoryCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl reclaim_mem\nJob-UUID: %s\n\n' % self._job_uuid
@@ -1162,8 +1162,8 @@ class ResumeSessionCreationCommand(BackgroundCommand):
              direction - inbound or outbound or None paramater value.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(ResumeSessionCreationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(ResumeSessionCreationCommand, self).__init__(sender)
     self.__direction__ = kwargs.get('direction')
 
   def direction(self):
@@ -1230,8 +1230,8 @@ class SendMessageCommand(BackgroundCommand):
              body - The message body.
 
   '''
-  def __init__(self, *args, **kwargs):
-    super(SendMessageCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SendMessageCommand, self).__init__(sender)
     self.__host__ = kwargs.get('host')
     self.__user__ = kwargs.get('user')
     self.__profile__ = kwargs.get('profile')
@@ -1287,8 +1287,8 @@ class SetDefaultDTMFDurationCommand(BackgroundCommand):
              duration - paramter value.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SetDefaultDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SetDefaultDTMFDurationCommand, self).__init__(sender)
     self.__duration__ = kwargs.get('duration')
 
   def duration(self):
@@ -1307,8 +1307,8 @@ class SetGlobalVariableCommand(BackgroundCommand):
              value - value of global variable
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SetGlobalVariableCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SetGlobalVariableCommand, self).__init__(sender)
     self._name = kwargs.get('name')
     self._value = kwargs.get('value')
     if not self._name or not self._value:
@@ -1338,8 +1338,8 @@ class SetMaximumDTMFDurationCommand(BackgroundCommand):
              duration - the maximum duration if a DTMF event. 
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SetMaximumDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SetMaximumDTMFDurationCommand, self).__init__(sender)
     self.__duration__ = kwargs.get('duration')
 
   def duration(self):
@@ -1362,8 +1362,8 @@ class SetMinimumDTMFDurationCommand(BackgroundCommand):
              duration - value of parameter.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SetMinimumDTMFDurationCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SetMinimumDTMFDurationCommand, self).__init__(sender)
     self.__duration__ = kwargs.get('duration')
 
   def duration(self):
@@ -1403,8 +1403,8 @@ class SetSessionsPerSecondCommand(BackgroundCommand):
              sessions_per_second - value for paramater.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SetSessionsPerSecondCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SetSessionsPerSecondCommand, self).__init__(sender)
     self.__sessions_per_second__ = kwargs.get('sessions_per_second')
 
   def sessions_per_second(self):
@@ -1455,8 +1455,8 @@ class ShutdownCommand(BackgroundCommand):
     restart - restart FreeSWITCH immediately following the shutdown. 
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(ShutdownCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(ShutdownCommand, self).__init__(sender)
     self.__option__ = kwargs.get('option')
     if self.__option__ and not self.__option__ == 'cancel' and \
       not self.__option__ == 'elegant' and not self.__option__ == 'asap' and \
@@ -1516,8 +1516,8 @@ class SmppSendCommand(BackgroundCommand):
               destination - The mobile number of the SMS recipient.
               message - The 160 character message that will be sent.
   '''
-  def __init__(self, *args, **kwargs):
-    super(SmppSendCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SmppSendCommand, self).__init__(sender)
     self.__destination__ = kwargs.get('destination')
     self.__gateway__ = kwargs.get('gateway')
     self.__message__ = kwargs.get('message')
@@ -1611,8 +1611,8 @@ class StatusCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(StatusCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(StatusCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi status\nJob-UUID: %s\n\n' % self._job_uuid
@@ -1677,8 +1677,8 @@ class SyncClockCommand(BackgroundCommand):
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(SyncClockCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SyncClockCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl sync_clock\nJob-UUID: %s\n\n' % self._job_uuid
@@ -1689,8 +1689,8 @@ class SyncClockWhenIdleCommand(BackgroundCommand):
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
   '''  
-  def __init__(self, *args, **kwargs):
-    super(SyncClockWhenIdleCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(SyncClockWhenIdleCommand, self).__init__(sender)
 
   def __str__(self):
     return 'bgapi fsctl sync_clock_when_idle\nJob-UUID: %s\n\n' % self._job_uuid
@@ -1765,8 +1765,8 @@ class UnloadModuleCommand(BackgroundCommand):
              force - force unload. Default set to False.
   '''  
 
-  def __init__(self, *args, **kwargs):
-    super(UnloadModuleCommand, self).__init__(*args, **kwargs)
+  def __init__(self, sender, **kwargs):
+    super(UnloadModuleCommand, self).__init__(sender)
     self._name = kwargs.get('name')
     self._force = kwargs.get('force', False)
 
