@@ -27,8 +27,8 @@ import logging
 import time
 
 class HelloSmtpWorld(Actor):
-  def __init__(self, *args, **kwargs):
-    super(HelloSmtpWorld, self).__init__(*args, **kwargs)
+  def __init__(self, scheduler, *args, **kwargs):
+    super(HelloSmtpWorld, self).__init__(scheduler)
     self.__logger__ = logging.getLogger(object_fqn(self))
 
   def receive(self, message):

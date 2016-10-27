@@ -58,7 +58,7 @@ class EventSocketBootstrapper(Actor, FiniteStateMachine):
   @Action(state = 'authenticating')
   def _authenticate(self):
     self._dispatcher.tell(EventSocketLockCommand(self))
-    self._dispatcher.tell(AuthCommand(self, password = self._password))
+    self._dispatcher.tell(AuthCommand(self, self._password))
 
   @Action(state = 'bootstrapping')
   def _bootstrap(self):
