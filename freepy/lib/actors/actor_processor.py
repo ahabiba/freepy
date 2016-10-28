@@ -20,11 +20,13 @@
 import logging
 import time
 
-from exceptions.interrupt_exception import InterruptException
-from messages.poison_pill import PoisonPill
-from constants import ACTOR_PROCESSOR_COMPLETED, ACTOR_PROCESSOR_IDLE, \
-                      ACTOR_PROCESSOR_READY, ACTOR_PROCESSOR_RUNNING
-from utils import object_fqn, time_delta_ms
+from freepy.lib.actors.exceptions.interrupt_exception import InterruptException
+from freepy.lib.actors.messages.poison_pill import PoisonPill
+from freepy.lib.actors.constants import ACTOR_PROCESSOR_COMPLETED, \
+                                        ACTOR_PROCESSOR_IDLE, \
+                                        ACTOR_PROCESSOR_READY, \
+                                        ACTOR_PROCESSOR_RUNNING
+from freepy.lib.actors.utils import object_fqn, time_delta_ms
 
 class ActorProcessor(object):
   '''
