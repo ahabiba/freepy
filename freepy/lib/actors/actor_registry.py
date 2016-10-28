@@ -49,7 +49,10 @@ class ActorRegistry(object):
   def _load_class(self, fqn):
     if 'freepy' not in fqn and len(settings.application_prefix):
       fqn = '{}.{}'.format(settings.application_prefix, fqn)
-    return class_loader.safe_import(fqn, force_load=True)
+    try:
+      return class_loader.safe_import(fqn, force_load=True)
+    except ImportError as e:
+      self._logger.error(e)
 
   def get_instance(self, fqn, init_message=None):
     if self.has_class(fqn):
