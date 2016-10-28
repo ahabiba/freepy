@@ -25,14 +25,14 @@ class ActorSchedulerManager(object):
   def __init__(self, schedulers):
     super(ActorSchedulerManager, self).__init__()
     self._logger = logging.getLogger(object_fqn(self))
-    self._count = 0
+    self._counter = 0
     self._schedulers = schedulers
 
   def next_scheduler(self):
     try:
-      return self._schedulers[self._count % len(self._schedulers)]
+      return self._schedulers[self._counter % len(self._schedulers)]
     finally:
-      self._count += 1
+      self._counter += 1
 
   @property
   def schedulers(self):
