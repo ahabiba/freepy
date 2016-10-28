@@ -88,7 +88,7 @@ class ActorScheduler(object):
       # If we don't have work to do back off for random periods of time
       # that never exceed one second at a time.
       if len(self._ready_actor_procs) == 0:
-        time.sleep(1 * random.uniform(0, 1))
+        time.sleep(1 * random.uniform(0, 0.25))
         continue
       # Once we have some work to do allow actor processors in the current
       # ready queue to take over the process.
