@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,10 +21,11 @@ import logging
 import random
 import time
 
-from exceptions.interrupt_exception import InterruptException
-from messages.poison_pill import PoisonPill
-from constants import ACTOR_PROCESSOR_IDLE, ACTOR_PROCESSOR_READY
-from utils import format_ms, object_fqn, time_delta_ms
+from freepy.lib.actors.exceptions.interrupt_exception import InterruptException
+from freepy.lib.actors.messages.poison_pill import PoisonPill
+from freepy.lib.actors.constants import ACTOR_PROCESSOR_IDLE, \
+                                        ACTOR_PROCESSOR_READY
+from freepy.lib.actors.utils import format_ms, object_fqn, time_delta_ms
 
 class ActorScheduler(object):
   def __init__(self, max_msgs_slice, max_time_slice):

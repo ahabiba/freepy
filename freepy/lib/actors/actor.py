@@ -19,18 +19,22 @@
 
 from uuid import uuid4
 
-from actor_processor import ActorProcessor
-from messages.poison_pill import PoisonPill
+from freepy.lib.actors.actor_processor import ActorProcessor
+from freepy.lib.actors.actor_scheduler import ActorScheduler
+from freepy.lib.actors.actor_scheduler_manager import ActorSchedulerManager
+from freepy.lib.actors.messages.poison_pill import PoisonPill
 
 class Actor(object):
   '''
   An actor is the most basic unit of computation in an actor framework.
   '''
 
-  def __init__(self, scheduler, *args, **kwargs):
-    self._scheduler = scheduler
-
+  def __init__(self, runner, *args, **kwargs):
     self._mailbox = list()
+    if isinstance(runner, ActorScheduler):
+      self._scheduler = runner
+    elif isinstance(runner, ActorSchedulerManager):
+      self._scheduler = runner.next_scheduler()
     self._urn = uuid4()
 
     super(Actor, self).__init__()

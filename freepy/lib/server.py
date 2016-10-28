@@ -22,6 +22,7 @@ import logging
 import os
 import signal
 
+from multiprocessing import cpu_count
 from threading import Thread
 
 from twisted.internet import reactor
@@ -31,7 +32,7 @@ from freepy import settings
 from freepy.lib.actors.actor import Actor
 from freepy.lib.actors.actor_registry import ActorRegistry
 from freepy.lib.actors.actor_scheduler import ActorScheduler
-from freepy.lib.actors.messages.poison_pill import PoisonPill
+from freepy.lib.actors.actor_scheduler_manager import ActorSchedulerManager
 from freepy.lib.actors.utils import class_fqn, object_fqn
 
 class Bootstrap(object):
@@ -96,27 +97,37 @@ class Bootstrap(object):
     """
     self._configure_logging()
     # Start the actor system scheduler.
-    scheduler = ActorScheduler(settings.scheduler.get('max_messages_slice'),
-                               settings.scheduler.get('max_time_slice'))
+    pool_size = settings.concurrency.get('threads').get('pool_size')
+    if pool_size is None:
+      pool_size = cpu_count()
+    schedulers = list()
+    for _ in xrange(pool_size):
+      schedulers.append(
+        ActorScheduler(settings.scheduler.get('max_messages_slice'),
+                       settings.scheduler.get('max_time_slice'))
+      )
+    scheduler_manager = ActorSchedulerManager(schedulers)
     # Register interrupt signal handler.
     def signal_handler(signal, frame):
-      scheduler.shutdown()
-      while True:
-        if not scheduler.is_running:
-          break  
+      for scheduler in scheduler_manager.schedulers:
+        scheduler.shutdown()
+        while True:
+          if not scheduler.is_running:
+            break  
       reactor.stop()
     signal.signal(signal.SIGINT, signal_handler)
     # Start the scheduler thread.
-    scheduler_thread = Thread(target=scheduler.start)
-    scheduler_thread.daemon = True
-    scheduler_thread.start()
+    for scheduler in schedulers:
+      scheduler_thread = Thread(target=scheduler.start)
+      scheduler_thread.daemon = True
+      scheduler_thread.start()
     # Start the Twisted reactor thread.
     reactor_thread = Thread(target=reactor.run, args=(False,))
     reactor_thread.daemon = True
     reactor_thread.start()
     # Start the freepy server.
     meta = self._load_meta()
-    server = Server(meta, scheduler)
+    server = Server(meta, scheduler_manager)
     if not wait_for_signal:
       return server
     signal.pause()
