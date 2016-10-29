@@ -162,6 +162,7 @@ services = [
       'freepy.services.freeswitch.commands.ReclaimMemoryCommand',
       'freepy.services.freeswitch.commands.RenegotiateMediaCommand',
       'freepy.services.freeswitch.commands.ResumeSessionCreationCommand',
+      'freepy.services.freeswitch.commands.RingReadyCommand',
       'freepy.services.freeswitch.commands.SendDTMFCommand',
       'freepy.services.freeswitch.commands.SendInfoCommand',
       'freepy.services.freeswitch.commands.SetAudioLevelCommand',
