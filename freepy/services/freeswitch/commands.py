@@ -307,6 +307,24 @@ class DialedExtensionHupAllCommand(BackgroundCommand):
     return 'bgapi fsctl hupall %s dialed_ext %s\nJob-UUID: %s\n\n' % (
       self._clearing, self._extension, self._job_uuid)
 
+class DigestAuthCommand(BackgroundCommand):
+  '''
+  Ask FreeSWITCH to authenticate a client.
+  '''
+
+  def __init__(self, *args, **kwargs):
+    super(DigestAuthCommand, self).__init__(*args, **kwargs)
+    self.__realm__ = kwargs.get('realm')
+
+  def realm(self):
+    return self.__realm__
+
+  def __str__(self):
+    if self.__realm__ is not None:
+      return 'bgapi respond 407 %s' % (self.__realm__)
+    else:
+      return 'bgapi respond 407'
+
 class DisableMediaCommand(UUIDCommand):
   '''
   Reinvite FreeSWITCH out of the media path: 
