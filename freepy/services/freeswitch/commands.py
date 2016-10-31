@@ -1194,6 +1194,20 @@ class ResumeSessionCreationCommand(BackgroundCommand):
       return 'bgapi fsctl resume %s\nJob-UUID: %s\n\n' % (self.__direction__,
         self._job_uuid)
 
+class RingReadyCommand(UUIDCommand):
+  '''
+  Send a 180 Ringing to the client. 
+
+  Arguments:  sender - The freepy actor sending this EventSocketCommand.
+              uuid - universal unique identifier.
+  '''
+  def __init__(self, *args, **kwargs):
+    super(RingReadyCommand, self).__init__(*args, **kwargs)
+
+  def __str__(self):
+    return 'bgapi uuid_ring_ready %s\nJob-UUID: %s\n\n' % (self._uuid,
+      self._job_uuid)
+
 class SendDTMFCommand(UUIDCommand):
   '''
   Send DTMF digits to <uuid> set.
