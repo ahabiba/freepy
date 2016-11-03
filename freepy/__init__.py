@@ -90,6 +90,7 @@ class Config():
           'freepy.services.freeswitch.commands.ResumeSessionCreationCommand',
           'freepy.services.freeswitch.commands.SendDTMFCommand',
           'freepy.services.freeswitch.commands.SendInfoCommand',
+          'freepy.services.freeswitch.commands.SendMessageCommand',
           'freepy.services.freeswitch.commands.SetAudioLevelCommand',
           'freepy.services.freeswitch.commands.SetDefaultDTMFDurationCommand',
           'freepy.services.freeswitch.commands.SetGlobalVariableCommand',
