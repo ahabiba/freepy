@@ -63,5 +63,4 @@ class Actor(object):
 
   def tell(self, message):
     self._mailbox.append(message)
-    if not self._scheduler._waiter.isSet():
-      self._scheduler._waiter.set()
+    self._scheduler.waiter.set()

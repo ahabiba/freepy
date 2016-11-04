@@ -47,6 +47,10 @@ class ActorScheduler(object):
     self._total_msgs_processed = 0
 
   @property
+  def waiter(self):
+    return self._waiter
+
+  @property
   def is_running(self):
     return self._running or self._stop_run_time is None
 
@@ -74,13 +78,7 @@ class ActorScheduler(object):
                        len(self._waiting_actor_procs)
     # Start the scheduler loop.
     self._start_run_time = time.time()
-    must_wait = False
     while self._running or n_running_actors > 0:
-      # if must_wait:
-      #   self._waiter.clear()
-      #   self._waiter.wait()
-      #   must_wait = False
-
       # Check the idle actor processors list for actors with new messages.
       if len(self._idle_actor_procs) > 0:
         temp = list()
@@ -96,14 +94,8 @@ class ActorScheduler(object):
       # If we don't have work to do back off for random periods of time
       # that never exceed one second at a time.
       if len(self._ready_actor_procs) == 0:
-        # time.sleep(1 * random.uniform(0, 0.25))
-        # continue
-        # if not self._waiter.isSet():
-        # self._logger.info('waiting boss')
         self._waiter.wait()
         self._waiter.clear()
-        # must_wait = True
-        continue
 
       # Once we have some work to do allow actor processors in the current
       # ready queue to take over the process.

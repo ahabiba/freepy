@@ -143,10 +143,7 @@ class ActorProcessor(object):
         self._actor.on_start()
     self._state = ACTOR_PROCESSOR_IDLE
     self._scheduler.schedule(self)
-    self._scheduler_waiter.set()
+    self._scheduler.waiter.set()
 
   def tell(self, message):
     self._mailbox.append(message)
-    # self._logger.info('GOT MESSAGE!')
-    # if not self._scheduler_waiter.isSet():
-    #   self._scheduler_waiter.set()
