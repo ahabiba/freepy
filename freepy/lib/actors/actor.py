@@ -39,7 +39,7 @@ class Actor(object):
 
     super(Actor, self).__init__()
     # Schedule ourself for execution.
-    proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn)
+    proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn, waiter=self._scheduler._waiter)
     proc.start()
 
   @property
@@ -63,3 +63,5 @@ class Actor(object):
 
   def tell(self, message):
     self._mailbox.append(message)
+    if not self._scheduler._waiter.isSet():
+      self._scheduler._waiter.set()

@@ -36,12 +36,13 @@ class ActorProcessor(object):
   the actors managed by a particular scheduler.
   '''
 
-  def __init__(self, actor, mailbox, scheduler, urn):
+  def __init__(self, actor, mailbox, scheduler, urn, **kwargs):
     super(ActorProcessor, self).__init__()
     self._logger = logging.getLogger(object_fqn(self))
     self._actor = actor
     self._mailbox = mailbox
     self._scheduler = scheduler
+    self._scheduler_waiter = kwargs.get('waiter')
     self._state = None
     # Run-time statistics.
     self._slice_msg_count = 0
@@ -142,6 +143,10 @@ class ActorProcessor(object):
         self._actor.on_start()
     self._state = ACTOR_PROCESSOR_IDLE
     self._scheduler.schedule(self)
+    self._scheduler_waiter.set()
 
   def tell(self, message):
     self._mailbox.append(message)
+    # self._logger.info('GOT MESSAGE!')
+    # if not self._scheduler_waiter.isSet():
+    #   self._scheduler_waiter.set()
