@@ -42,7 +42,6 @@ class ActorProcessor(object):
     self._actor = actor
     self._mailbox = mailbox
     self._scheduler = scheduler
-    self._scheduler_waiter = kwargs.get('waiter')
     self._state = None
     # Run-time statistics.
     self._slice_msg_count = 0
