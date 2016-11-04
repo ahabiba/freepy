@@ -36,7 +36,7 @@ class ActorProcessor(object):
   the actors managed by a particular scheduler.
   '''
 
-  def __init__(self, actor, mailbox, scheduler, urn, **kwargs):
+  def __init__(self, actor, mailbox, scheduler, urn):
     super(ActorProcessor, self).__init__()
     self._logger = logging.getLogger(object_fqn(self))
     self._actor = actor

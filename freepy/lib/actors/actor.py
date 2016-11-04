@@ -29,7 +29,7 @@ class Actor(object):
   An actor is the most basic unit of computation in an actor framework.
   '''
 
-  def __init__(self, runner, *args, **kwargs):
+  def __init__(self, runner):
     self._mailbox = list()
     if isinstance(runner, ActorScheduler):
       self._scheduler = runner
@@ -39,7 +39,7 @@ class Actor(object):
 
     super(Actor, self).__init__()
     # Schedule ourself for execution.
-    proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn, waiter=self._scheduler._waiter)
+    proc = ActorProcessor(self, self._mailbox, self._scheduler, self._urn)
     proc.start()
 
   @property
