@@ -142,6 +142,7 @@ class ActorProcessor(object):
         self._actor.on_start()
     self._state = ACTOR_PROCESSOR_IDLE
     self._scheduler.schedule(self)
+    self._scheduler.notify()
 
   def tell(self, message):
     self._mailbox.append(message)

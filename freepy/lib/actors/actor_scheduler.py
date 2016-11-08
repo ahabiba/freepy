@@ -18,7 +18,7 @@
 # Thomas Quintana <quintana.thomas@gmail.com>
 
 import logging
-import random
+import threading
 import time
 
 from freepy.lib.actors.exceptions.interrupt_exception import InterruptException
@@ -39,10 +39,18 @@ class ActorScheduler(object):
     self._ready_actor_procs = list()
     self._waiting_actor_procs = list()
     self._running = False
+    self._barrier = threading.Event()
     # Run-time statistics.
     self._start_run_time = None
     self._stop_run_time = None
     self._total_msgs_processed = 0
+
+  @property
+  def barrier(self):
+    return self._barrier
+
+  def notify(self):
+    self._barrier.set()
 
   @property
   def is_running(self):
@@ -88,8 +96,9 @@ class ActorScheduler(object):
       # If we don't have work to do back off for random periods of time
       # that never exceed one second at a time.
       if len(self._ready_actor_procs) == 0:
-        time.sleep(1 * random.uniform(0, 0.25))
-        continue
+        self._barrier.wait()
+        self._barrier.clear()
+
       # Once we have some work to do allow actor processors in the current
       # ready queue to take over the process.
       while len(self._ready_actor_procs) > 0:

@@ -50,7 +50,6 @@ class Actor(object):
   def urn(self):
     return self._urn
 
-
   def receive(self, message):
     '''
     This method processes incoming messages.
@@ -63,3 +62,4 @@ class Actor(object):
 
   def tell(self, message):
     self._mailbox.append(message)
+    self._scheduler.notify()
