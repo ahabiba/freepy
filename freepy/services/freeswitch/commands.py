@@ -1255,35 +1255,30 @@ class SendMessageCommand(BackgroundCommand):
   Send a SIP message.
 
   Arguments: sender - The freepy actor sending this EventSocketCommand.
-             host - The host to which we will send the message.
-             user - The user to which we will send the message.
              profile - The profile to use for sending the message.
              content_type - The type of content being sent.
              body - The message body.
+             destination - The recipient of the message: 1000@192.168.1.10.
+             source - The sender of the message: 1001@192.168.1.11.
 
   '''
   def __init__(self, sender, **kwargs):
     super(SendMessageCommand, self).__init__(sender)
-    self.__host__ = kwargs.get('host')
-    self.__user__ = kwargs.get('user')
     self.__profile__ = kwargs.get('profile')
     self.__content_type__ = kwargs.get('content_type')
     self.__body__ = kwargs.get('body')
+    self.__destination__ = kwargs.get('destination')
+    self.__source__ = kwargs.get('source')
 
   def __str__(self):
-    return 'sendevent SEND_MESSAGE\n' \
-           'profile: %s\n' \
-           'content-length: %i\n' \
-           'content-type: %s\n' \
-           'user: %s\n' \
-           'host: %s\n' \
-           '\n%s\n' % (
-            self.__profile__,
-            len(self.__body__),
-            self.__content_type__,
-            self.__user__,
-            self.__host__,
-            self.__body__)
+    return 'bgapi chat sip|%s|%s/%s|%s|%s\nJob-UUID: %s\n\n' % (
+      self.__source__,
+      self.__profile__,
+      self.__destination__,
+      str.join("", self.__body__.splitlines()),
+      self.__content_type__,
+      self._job_uuid
+    )
 
 class SetAudioLevelCommand(UUIDCommand):
   '''
