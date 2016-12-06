@@ -180,7 +180,7 @@ class Server(Actor):
     if self._observers.has_key(fqn):
       recipients = self._observers.get(fqn)
       for idx in xrange(len(recipients)):
-        if observer.urn() == recipients[idx].urn():
+        if observer.urn == recipients[idx].urn:
           del recipients[idx]
 
   def _watch(self, message):
