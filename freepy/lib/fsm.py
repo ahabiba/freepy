@@ -279,11 +279,11 @@ class FiniteStateMachine(object):
         transition.get('beginning_state').get('on_exit')(event)
       else:
         transition.get('beginning_state').get('on_exit')()
+    # Enter the new state
+    self._state = to
     # Try to execute the action associated with entering the new state.
     if transition.get('end_state').has_key('on_enter'):
       if event is not None:
         transition.get('end_state').get('on_enter')(event)
       else:
         transition.get('end_state').get('on_enter')()
-    # Enter the new state and we're done.
-    self._state = to
