@@ -17,6 +17,9 @@
 #
 # Thomas Quintana <quintana.thomas@gmail.com>
 
+import collections
+
+
 class Config():
     # A list of services to register with the router.
     application_prefix = ''
@@ -127,11 +130,20 @@ class Config():
       }
     ]
 
+    def _update_settings(self, d, u):
+        for k, v in u.iteritems():
+            if isinstance(v, collections.Mapping):
+                r = self._update_settings(d.get(k, {}), v)
+                d[k] = r
+            else:
+                d[k] = u[k]
+        return d
+
     def update(self, settings):
-      if type(settings) == dict:
-        self.__dict__.update(settings)
-      else:
-        self.__dict__ = vars(settings).copy()
+        if type(settings) == dict:
+            self._update_settings(self.__dict__, settings)
+        else:
+            self._update_settings(self.__dict__, vars(settings).copy())
 
     def set(self, attr, val):
         self.__dict__[attr] = val
