@@ -38,10 +38,10 @@ from freepy.lib.actors.utils import class_fqn, object_fqn
 class Bootstrap(object):
   def __init__(self, *args, **kwargs):
     self._logger = logging.getLogger(object_fqn(self))
+    settings.update(config)
     if 'settings' in kwargs:
       settings.update(kwargs.get('settings'))
     else:
-      settings.update(__import__('config'))
       settings.update({'application_prefix': 'applications'})
     self._metafile = kwargs.get('metafile', None)
 
