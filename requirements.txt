@@ -6,4 +6,4 @@ pyopenssl==0.15.1
 redis==2.10.5
 service_identity==14.0.0
 sqlalchemy==1.1.1
-twisted==15.5.0
+twisted==19.7.0
